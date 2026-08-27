@@ -1,0 +1,22 @@
+# ---------------------------------------------------------------------------
+# Computer vision dependencies - the quality gate
+#
+# Deliberately separate from requirements.txt so the web app can be developed
+# on any machine without these.  The gate degrades to a documented "unavailable"
+# verdict when they are absent (see app/gate/backends.py) - it never silently
+# passes an image it could not actually check.
+#
+# ONNX ONLY.  Do not add torch.  Reasons, in order:
+#   1. ~2 GB dependency on a machine we are keeping free
+#   2. the usual cause of aarch64 build failures on the Oracle ARM target
+#   3. every metric the gate needs is achievable with onnxruntime + opencv
+# ---------------------------------------------------------------------------
+
+onnxruntime==1.20.1
+opencv-python-headless==4.11.0.86
+scikit-image==0.25.0
+insightface==0.7.3
+
+# Models are downloaded by scripts/fetch_models.py, not vendored:
+#   buffalo_l         face detection + ArcFace recognition  (insightface)
+#   yolov8n-pose.onnx body keypoints -> proportion baseline

@@ -1,0 +1,94 @@
+{
+  "version": "1.0",
+  "id": "retrato_blanco_negro",
+  "name": "Blanco y negro",
+  "category": "retrato",
+  "cover_image": "covers/retrato_blanco_negro.webp",
+  "recipe": {
+    "garment": {
+      "type": "prenda lisa oscura",
+      "fabric": "algodon mate",
+      "colors": [
+        "negro",
+        "gris marengo"
+      ],
+      "details": "sin brillos ni logos"
+    },
+    "scene": {
+      "place": "fondo oscuro liso",
+      "time": null,
+      "depth": "fondo que cae a negro"
+    },
+    "lighting": {
+      "key": "luz lateral dura con caida rapida",
+      "fill": "sin relleno, sombra profunda",
+      "mood": "dramatico, alto contraste, grano fino de pelicula"
+    },
+    "camera": {
+      "focal_mm": 85,
+      "aperture": "f/2.8",
+      "height": "ojos",
+      "framing": "primer plano"
+    },
+    "pose_family": [
+      "de frente",
+      "perfil",
+      "tres cuartos",
+      "mirada baja"
+    ]
+  },
+  "applies_to": {
+    "framing": [
+      "primer plano",
+      "medio"
+    ],
+    "needs_body": false,
+    "replaces_background": true,
+    "min_source_quality": 0.5
+  },
+  "variation_axes": [
+    "expression",
+    "gesture"
+  ],
+  "locks": [
+    "face",
+    "body_proportions",
+    "skin_tone",
+    "hair"
+  ],
+  "selectable": [
+    "expression",
+    "gesture",
+    "framing"
+  ],
+  "chips": {
+    "expression": [
+      "neutra",
+      "seria",
+      "mirada baja",
+      "sonrisa suave"
+    ],
+    "gesture": [
+      "de frente",
+      "perfil",
+      "tres cuartos",
+      "mano en la cara"
+    ],
+    "framing": [
+      "como esta",
+      "primer plano",
+      "medio"
+    ]
+  },
+  "chip_stats": {},
+  "route_hint": "in_place_edit",
+  "learned_params": {},
+  "stats": {
+    "first_try_rate": null,
+    "avg_cost_usd": null,
+    "keep_rate": null,
+    "sessions": 0,
+    "last_shown_at": null
+  },
+  "enabled": true
+}

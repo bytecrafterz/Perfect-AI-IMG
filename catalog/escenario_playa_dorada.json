@@ -1,0 +1,106 @@
+{
+  "version": "1.0",
+  "id": "escenario_playa_dorada",
+  "name": "Playa al atardecer",
+  "category": "escenarios",
+  "cover_image": "covers/escenario_playa_dorada.webp",
+  "recipe": {
+    "garment": {
+      "type": "vestido ligero",
+      "fabric": "lino o gasa que se mueve con el viento",
+      "colors": [
+        "blanco",
+        "crema",
+        "azul claro"
+      ],
+      "details": "vuelo amplio"
+    },
+    "scene": {
+      "place": "playa de arena clara con orilla visible",
+      "time": "ultima hora antes del atardecer",
+      "depth": "mar y horizonte desenfocados"
+    },
+    "lighting": {
+      "key": "sol bajo a contraluz",
+      "fill": "rebote de la arena en la cara",
+      "mood": "calido, luz dorada, algo de destello"
+    },
+    "camera": {
+      "focal_mm": 70,
+      "aperture": "f/2.2",
+      "height": "pecho",
+      "framing": "cuerpo entero"
+    },
+    "pose_family": [
+      "caminando por la orilla",
+      "de pie mirando al mar",
+      "girando",
+      "sentada en la arena"
+    ]
+  },
+  "applies_to": {
+    "framing": [
+      "cuerpo entero",
+      "medio"
+    ],
+    "needs_body": true,
+    "replaces_background": true,
+    "min_source_quality": 0.5
+  },
+  "variation_axes": [
+    "gesture",
+    "expression",
+    "garment_color"
+  ],
+  "locks": [
+    "face",
+    "body_proportions",
+    "skin_tone",
+    "hair"
+  ],
+  "selectable": [
+    "garment",
+    "garment_color",
+    "gesture",
+    "expression"
+  ],
+  "chips": {
+    "garment": [
+      "vestido ligero",
+      "pareo",
+      "camisa y pantalon de lino"
+    ],
+    "garment_color": [
+      "blanco",
+      "crema",
+      "azul claro",
+      "coral"
+    ],
+    "gesture": [
+      "caminando por la orilla",
+      "de pie mirando al mar",
+      "girando",
+      "sentada en la arena",
+      "mano en el pelo"
+    ],
+    "expression": [
+      "neutra",
+      "sonrisa suave",
+      "sonrisa amplia",
+      "seria",
+      "mirada baja"
+    ]
+  },
+  "chip_stats": {},
+  "route_hint": "in_place_edit",
+  "learned_params": {},
+  "stats": {
+    "first_try_rate": null,
+    "avg_cost_usd": null,
+    "keep_rate": null,
+    "sessions": 0,
+    "last_shown_at": null
+  },
+  "enabled": true,
+  "_note": "Este look se autoriza tal cual. Mientras COVERAGE_POLICY=full el compilador neutraliza la exposicion; al desactivarla se renderiza como esta escrito."
+}

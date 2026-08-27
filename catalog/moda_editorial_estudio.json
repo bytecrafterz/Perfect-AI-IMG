@@ -1,0 +1,112 @@
+{
+  "version": "1.0",
+  "id": "moda_editorial_estudio",
+  "name": "Editorial de estudio",
+  "category": "moda",
+  "cover_image": "covers/moda_editorial_estudio.webp",
+  "recipe": {
+    "garment": {
+      "type": "conjunto sastre",
+      "fabric": "lana fria con caida estructurada",
+      "colors": [
+        "negro",
+        "hueso",
+        "camel"
+      ],
+      "details": "hombro marcado, pantalon recto"
+    },
+    "scene": {
+      "place": "estudio de fondo infinito gris medio",
+      "time": null,
+      "depth": "fondo limpio sin textura, separacion por luz"
+    },
+    "lighting": {
+      "key": "ventana de luz grande a 45 grados",
+      "fill": "panel blanco al lado opuesto",
+      "mood": "editorial, sombra controlada"
+    },
+    "camera": {
+      "focal_mm": 105,
+      "aperture": "f/4.0",
+      "height": "pecho",
+      "framing": "medio"
+    },
+    "pose_family": [
+      "de pie de frente",
+      "tres cuartos",
+      "manos en los bolsillos",
+      "brazos cruzados"
+    ]
+  },
+  "applies_to": {
+    "framing": [
+      "medio",
+      "cuerpo entero"
+    ],
+    "needs_body": true,
+    "replaces_background": true,
+    "min_source_quality": 0.5
+  },
+  "variation_axes": [
+    "gesture",
+    "expression",
+    "garment_color"
+  ],
+  "locks": [
+    "face",
+    "body_proportions",
+    "skin_tone",
+    "hair"
+  ],
+  "selectable": [
+    "garment",
+    "garment_color",
+    "gesture",
+    "expression",
+    "framing"
+  ],
+  "chips": {
+    "garment": [
+      "conjunto sastre",
+      "blazer y vaquero",
+      "vestido midi",
+      "camisa blanca"
+    ],
+    "garment_color": [
+      "negro",
+      "hueso",
+      "camel",
+      "azul marino"
+    ],
+    "gesture": [
+      "de pie de frente",
+      "tres cuartos",
+      "manos en los bolsillos",
+      "brazos cruzados",
+      "manos en la cintura"
+    ],
+    "expression": [
+      "neutra",
+      "sonrisa suave",
+      "sonrisa amplia",
+      "seria",
+      "mirada baja"
+    ],
+    "framing": [
+      "como esta",
+      "medio",
+      "cuerpo entero"
+    ]
+  },
+  "chip_stats": {},
+  "route_hint": "in_place_edit",
+  "learned_params": {},
+  "stats": {
+    "first_try_rate": null,
+    "avg_cost_usd": null,
+    "keep_rate": null,
+    "sessions": 0,
+    "last_shown_at": null
+  },
+  "enabled": true
+}

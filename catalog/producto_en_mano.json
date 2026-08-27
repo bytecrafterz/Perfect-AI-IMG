@@ -1,0 +1,91 @@
+{
+  "version": "1.0",
+  "id": "producto_en_mano",
+  "name": "Producto en mano",
+  "category": "producto",
+  "cover_image": "covers/producto_en_mano.webp",
+  "recipe": {
+    "garment": {
+      "type": "manga lisa neutra",
+      "fabric": "algodon mate",
+      "colors": [
+        "blanco",
+        "negro"
+      ],
+      "details": "sin estampado, para no competir con el producto"
+    },
+    "scene": {
+      "place": "superficie lisa clara con fondo neutro",
+      "time": null,
+      "depth": "fondo liso, poca profundidad"
+    },
+    "lighting": {
+      "key": "luz suave cenital ligeramente frontal",
+      "fill": "rebote blanco para eliminar sombra dura",
+      "mood": "limpio, comercial, sombra suave bajo el objeto"
+    },
+    "camera": {
+      "focal_mm": 60,
+      "aperture": "f/5.6",
+      "height": "pecho",
+      "framing": "primer plano"
+    },
+    "pose_family": [
+      "sujetando el objeto a la altura del pecho",
+      "mostrando el objeto en la palma"
+    ]
+  },
+  "applies_to": {
+    "framing": [
+      "primer plano",
+      "medio"
+    ],
+    "needs_body": false,
+    "replaces_background": true,
+    "min_source_quality": 0.55
+  },
+  "variation_axes": [
+    "gesture",
+    "light"
+  ],
+  "locks": [
+    "face",
+    "body_proportions",
+    "skin_tone",
+    "hair"
+  ],
+  "selectable": [
+    "gesture",
+    "light",
+    "garment_color"
+  ],
+  "chips": {
+    "gesture": [
+      "sujetando a la altura del pecho",
+      "en la palma abierta",
+      "entre las dos manos",
+      "sujetando por el borde"
+    ],
+    "light": [
+      "como esta",
+      "suave cenital",
+      "estudio",
+      "natural"
+    ],
+    "garment_color": [
+      "blanco",
+      "negro"
+    ]
+  },
+  "chip_stats": {},
+  "route_hint": "in_place_edit",
+  "learned_params": {},
+  "stats": {
+    "first_try_rate": null,
+    "avg_cost_usd": null,
+    "keep_rate": null,
+    "sessions": 0,
+    "last_shown_at": null
+  },
+  "enabled": true
+}

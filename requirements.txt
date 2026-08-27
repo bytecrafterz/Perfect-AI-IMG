@@ -1,0 +1,49 @@
+# ---------------------------------------------------------------------------
+# Estudio - AI photo production robot
+# Python 3.11.  ONNX only - NO PyTorch anywhere (aarch64 / Oracle ARM target)
+#
+# Every dependency here is one more wheel that has to build on ARM, so the
+# list is short on purpose.  Notably absent:
+#   - an ORM: the schema is eight columns wide, stdlib sqlite3 is enough
+#   - pydantic-settings: app/config.py reads os.environ directly
+#   - a JS toolchain: the front end is Jinja + vanilla JS, no build step
+# ---------------------------------------------------------------------------
+
+# --- web app -----------------------------------------------------------------
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+jinja2==3.1.5
+python-multipart==0.0.20
+sse-starlette==2.2.1
+itsdangerous==2.2.0
+pywebpush==2.0.3
+
+# --- contracts ---------------------------------------------------------------
+pydantic==2.10.5
+
+# --- scheduling (standing orders) --------------------------------------------
+APScheduler==3.11.0
+
+# --- imaging -----------------------------------------------------------------
+pillow==11.1.0
+pillow-heif==0.21.0          # REQUIRED: iPhone photos arrive as HEIC
+numpy==2.2.1
+
+# --- providers ---------------------------------------------------------------
+httpx==0.28.1
+tenacity==9.0.0
+
+# --- language models ---------------------------------------------------------
+# Imported lazily.  The app boots, and the whole pipeline runs on the mock
+# provider, without this installed or configured.
+anthropic==0.42.0
+
+# --- tests -------------------------------------------------------------------
+pytest==8.3.4
+pytest-asyncio==0.25.2
+
+# ---------------------------------------------------------------------------
+# The quality gate's computer vision lives in requirements-cv.txt, installed
+# separately.  Without it the gate reports UNKNOWN for identity, proportions
+# and hands - never PASS - and the app says so on every screen.
+# ---------------------------------------------------------------------------

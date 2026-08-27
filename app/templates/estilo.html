@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Estilo{% endblock %}
+
+{% block content %}
+<h1>¿Qué quieres hacer con esta foto?</h1>
+<p class="muted">Encuadre detectado: {{ framing }}</p>
+
+{% if proposals %}
+  <h2>Estilos rápidos · un toque y listo</h2>
+  <div class="quick" id="quick">
+    {% for proposal in proposals %}
+      <div class="quick-card" data-look="{{ proposal.id }}">
+        {% if proposal.cover %}
+          <img src="{{ proposal.cover }}" alt="" loading="lazy">
+        {% else %}
+          <img src="{{ photo_url }}" alt="" loading="lazy">
+        {% endif %}
+        <div class="name">{{ proposal.name }}</div>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<h2>O elige tú · puedes marcar varios en cada fila</h2>
+
+{% for row in rows %}
+  <div class="row" data-attribute="{{ row.attribute }}">
+    <div class="row-label">{{ row.label }}</div>
+    <div class="chips">
+      {% for chip in row.chips %}
+        <button class="chip" data-value="{{ chip }}">{{ chip }}</button>
+      {% endfor %}
+    </div>
+  </div>
+{% endfor %}
+
+<div class="bar">
+  <div class="bar-inner">
+    <!-- The live counter is honest about what she is asking for, before she
+         spends anything: selecting more raises variety, not price. -->
+    <div class="counter" id="counter">Sin filtros · te preparo una variedad</div>
+    <button class="go" id="go">Ver 6 opciones</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+const IMAGE_ID = "{{ image_id }}";
+
+// Plural forms so the counter reads like a sentence rather than a debug line.
+const LABELS = {
+  garment:      ['ropa', 'ropas'],
+  garment_color:['color', 'colores'],
+  hair:         ['peinado', 'peinados'],
+  gesture:      ['gesto', 'gestos'],
+  expression:   ['expresión', 'expresiones'],
+  scene:        ['escenario', 'escenarios'],
+  light:        ['luz', 'luces'],
+  framing:      ['encuadre', 'encuadres'],
+};
+
+const selections = {};   // attribute -> [values]  (order = the order she tapped)
+let lookId = "";
+
+document.querySelectorAll('.row').forEach(row => {
+  const attribute = row.dataset.attribute;
+  row.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const value = chip.dataset.value;
+      const chosen = selections[attribute] || [];
+      const at = chosen.indexOf(value);
+
+      // Three states per row, one uniform rule:
+      //   none selected -> the robot varies it
+      //   one           -> fixed in all six
+      //   several       -> varies across exactly those
+      if (at >= 0) { chosen.splice(at, 1); } else { chosen.push(value); }
+
+      if (chosen.length) { selections[attribute] = chosen; }
+      else { delete selections[attribute]; }
+
+      chip.classList.toggle('on', at < 0);
+      render();
+    });
+  });
+});
+
+document.querySelectorAll('.quick-card').forEach(card => {
+  card.addEventListener('click', () => {
+    const wasOn = card.classList.contains('on');
+    document.querySelectorAll('.quick-card').forEach(c => c.classList.remove('on'));
+    if (!wasOn) { card.classList.add('on'); lookId = card.dataset.look; }
+    else { lookId = ""; }
+    render();
+  });
+});
+
+function render() {
+  const parts = [];
+  let combinations = 1;
+  for (const attribute of Object.keys(selections).sort()) {
+    const count = selections[attribute].length;
+    const [singular, plural] = LABELS[attribute] || [attribute, attribute];
+    parts.push(`${count} ${count === 1 ? singular : plural}`);
+    combinations *= count;
+  }
+  const counter = document.getElementById('counter');
+  if (!parts.length) {
+    counter.innerHTML = lookId
+      ? 'Estilo rápido seleccionado'
+      : 'Sin filtros · te preparo una variedad';
+  } else {
+    const word = combinations === 1 ? 'combinación' : 'combinaciones';
+    counter.innerHTML = `${parts.join(' × ')} = <strong>${combinations} ${word}</strong>`;
+  }
+}
+
+document.getElementById('go').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  button.textContent = 'Preparando…';
+
+  const body = new FormData();
+  body.append('image_id', IMAGE_ID);
+  body.append('look_id', lookId);
+  body.append('selections', JSON.stringify(selections));
+
+  try {
+    const response = await fetch('/previews', { method: 'POST', body });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || 'error');
+    location.href = `/opciones/${data.session_id}`;
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = 'Ver 6 opciones';
+    alert('No he podido empezar. Inténtalo otra vez.');
+  }
+});
+
+render();
+</script>
+{% endblock %}

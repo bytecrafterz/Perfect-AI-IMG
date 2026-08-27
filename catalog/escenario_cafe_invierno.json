@@ -1,0 +1,103 @@
+{
+  "version": "1.0",
+  "id": "escenario_cafe_invierno",
+  "name": "Café en invierno",
+  "category": "escenarios",
+  "cover_image": "covers/escenario_cafe_invierno.webp",
+  "recipe": {
+    "garment": {
+      "type": "jersey de punto grueso",
+      "fabric": "lana trenzada",
+      "colors": [
+        "crema",
+        "camel",
+        "gris"
+      ],
+      "details": "cuello alto, mangas amplias"
+    },
+    "scene": {
+      "place": "interior de cafeteria con madera y ventana empanada",
+      "time": "manana de invierno",
+      "depth": "luces calidas desenfocadas al fondo"
+    },
+    "lighting": {
+      "key": "luz de ventana fria por un lado",
+      "fill": "lamparas calidas del interior por el otro",
+      "mood": "acogedor, mezcla de temperaturas"
+    },
+    "camera": {
+      "focal_mm": 50,
+      "aperture": "f/1.8",
+      "height": "pecho",
+      "framing": "medio"
+    },
+    "pose_family": [
+      "sentada con la taza",
+      "mirando por la ventana",
+      "apoyada en la mesa"
+    ]
+  },
+  "applies_to": {
+    "framing": [
+      "medio",
+      "primer plano"
+    ],
+    "needs_body": false,
+    "replaces_background": true,
+    "min_source_quality": 0.45
+  },
+  "variation_axes": [
+    "gesture",
+    "expression",
+    "garment_color"
+  ],
+  "locks": [
+    "face",
+    "body_proportions",
+    "skin_tone",
+    "hair"
+  ],
+  "selectable": [
+    "garment",
+    "garment_color",
+    "gesture",
+    "expression"
+  ],
+  "chips": {
+    "garment": [
+      "jersey de punto",
+      "camisa de franela",
+      "abrigo abierto"
+    ],
+    "garment_color": [
+      "crema",
+      "camel",
+      "gris",
+      "verde oliva"
+    ],
+    "gesture": [
+      "sentada con la taza",
+      "mirando por la ventana",
+      "apoyada en la mesa",
+      "manos alrededor de la taza"
+    ],
+    "expression": [
+      "neutra",
+      "sonrisa suave",
+      "sonrisa amplia",
+      "seria",
+      "mirada baja"
+    ]
+  },
+  "chip_stats": {},
+  "route_hint": "in_place_edit",
+  "learned_params": {},
+  "stats": {
+    "first_try_rate": null,
+    "avg_cost_usd": null,
+    "keep_rate": null,
+    "sessions": 0,
+    "last_shown_at": null
+  },
+  "enabled": true
+}

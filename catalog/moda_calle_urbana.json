@@ -1,0 +1,114 @@
+{
+  "version": "1.0",
+  "id": "moda_calle_urbana",
+  "name": "Calle urbana",
+  "category": "moda",
+  "cover_image": "covers/moda_calle_urbana.webp",
+  "recipe": {
+    "garment": {
+      "type": "abrigo largo",
+      "fabric": "pano de lana",
+      "colors": [
+        "camel",
+        "gris marengo",
+        "negro"
+      ],
+      "details": "cinturon anudado, cuello subido"
+    },
+    "scene": {
+      "place": "calle de ciudad con fachadas de piedra y escaparates",
+      "time": "media manana, dia nublado",
+      "depth": "peatones desenfocados al fondo"
+    },
+    "lighting": {
+      "key": "luz difusa de dia nublado",
+      "fill": "rebote del pavimento humedo",
+      "mood": "natural, sin sombras duras"
+    },
+    "camera": {
+      "focal_mm": 50,
+      "aperture": "f/2.8",
+      "height": "pecho",
+      "framing": "cuerpo entero"
+    },
+    "pose_family": [
+      "caminando",
+      "parada mirando al lado",
+      "cruzando la calle",
+      "apoyada en una pared"
+    ]
+  },
+  "applies_to": {
+    "framing": [
+      "cuerpo entero",
+      "medio"
+    ],
+    "needs_body": true,
+    "replaces_background": true,
+    "min_source_quality": 0.5
+  },
+  "variation_axes": [
+    "gesture",
+    "expression",
+    "garment_color",
+    "light"
+  ],
+  "locks": [
+    "face",
+    "body_proportions",
+    "skin_tone",
+    "hair"
+  ],
+  "selectable": [
+    "garment",
+    "garment_color",
+    "gesture",
+    "expression",
+    "light"
+  ],
+  "chips": {
+    "garment": [
+      "abrigo largo",
+      "cazadora de cuero",
+      "gabardina",
+      "punto oversize"
+    ],
+    "garment_color": [
+      "camel",
+      "negro",
+      "gris marengo",
+      "verde oliva"
+    ],
+    "gesture": [
+      "caminando",
+      "parada",
+      "cruzando la calle",
+      "apoyada en la pared",
+      "mirando el escaparate"
+    ],
+    "expression": [
+      "neutra",
+      "sonrisa suave",
+      "sonrisa amplia",
+      "seria",
+      "mirada baja"
+    ],
+    "light": [
+      "como esta",
+      "nublado",
+      "dorada",
+      "dramatica"
+    ]
+  },
+  "chip_stats": {},
+  "route_hint": "in_place_edit",
+  "learned_params": {},
+  "stats": {
+    "first_try_rate": null,
+    "avg_cost_usd": null,
+    "keep_rate": null,
+    "sessions": 0,
+    "last_shown_at": null
+  },
+  "enabled": true
+}

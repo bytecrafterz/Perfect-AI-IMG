@@ -1,0 +1,104 @@
+{
+  "version": "1.0",
+  "id": "retrato_luz_natural",
+  "name": "Retrato con luz de ventana",
+  "category": "retrato",
+  "cover_image": "covers/retrato_luz_natural.webp",
+  "recipe": {
+    "garment": {
+      "type": "prenda sencilla",
+      "fabric": "punto suave",
+      "colors": [
+        "crema",
+        "gris",
+        "verde salvia"
+      ],
+      "details": "sin estampados que compitan con la cara"
+    },
+    "scene": {
+      "place": "interior junto a una ventana grande",
+      "time": "media tarde",
+      "depth": "habitacion en penumbra al fondo"
+    },
+    "lighting": {
+      "key": "luz de ventana lateral, suave y direccional",
+      "fill": "caida natural a sombra, sin relleno artificial",
+      "mood": "intimo, contraste medio"
+    },
+    "camera": {
+      "focal_mm": 85,
+      "aperture": "f/1.8",
+      "height": "ojos",
+      "framing": "primer plano"
+    },
+    "pose_family": [
+      "mirando a camara",
+      "mirando por la ventana",
+      "cabeza ligeramente inclinada"
+    ]
+  },
+  "applies_to": {
+    "framing": [
+      "primer plano",
+      "medio"
+    ],
+    "needs_body": false,
+    "replaces_background": false,
+    "min_source_quality": 0.45
+  },
+  "variation_axes": [
+    "expression",
+    "light",
+    "hair"
+  ],
+  "locks": [
+    "face",
+    "body_proportions",
+    "skin_tone",
+    "hair"
+  ],
+  "selectable": [
+    "expression",
+    "light",
+    "hair",
+    "framing"
+  ],
+  "chips": {
+    "expression": [
+      "neutra",
+      "sonrisa suave",
+      "sonrisa amplia",
+      "seria",
+      "mirada baja"
+    ],
+    "light": [
+      "como esta",
+      "ventana lateral",
+      "contraluz suave",
+      "dorada"
+    ],
+    "hair": [
+      "el mio",
+      "suelto",
+      "recogido",
+      "coleta",
+      "ondas"
+    ],
+    "framing": [
+      "como esta",
+      "primer plano",
+      "medio"
+    ]
+  },
+  "chip_stats": {},
+  "route_hint": "in_place_edit",
+  "learned_params": {},
+  "stats": {
+    "first_try_rate": null,
+    "avg_cost_usd": null,
+    "keep_rate": null,
+    "sessions": 0,
+    "last_shown_at": null
+  },
+  "enabled": true
+}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{% if kept_only %}Favoritos{% else %}Galería{% endif %}{% endblock %}
+
+{% block content %}
+<h1>{% if kept_only %}Favoritos{% else %}Galería{% endif %}</h1>
+<p class="muted">{{ images | length }} foto{{ '' if images | length == 1 else 's' }}</p>
+
+{% if images %}
+  {# Thumbnails, not originals. Full-resolution photographs over mobile data
+     would make this screen unusable; the original is fetched only when she
+     asks to download one. #}
+  <div class="grid">
+    {% for image in images %}
+      <div class="cell" data-full="/media/{{ image.name }}">
+        <img src="/media/thumb/{{ image.stem }}.webp" alt="" loading="lazy">
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="notice">
+    Todavía no hay nada aquí. Sube una foto desde <strong>Crear</strong>.
+  </div>
+{% endif %}
+
+<div class="viewer" id="viewer">
+  <img id="viewer-img" alt="">
+  <div class="viewer-actions">
+    <a id="download" download>Descargar</a>
+    <button onclick="document.getElementById('viewer').classList.remove('open')">Cerrar</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+document.querySelectorAll('.cell').forEach(cell => {
+  cell.addEventListener('click', () => {
+    const url = cell.dataset.full;
+    document.getElementById('viewer-img').src = url;
+    document.getElementById('download').href = url;
+    document.getElementById('viewer').classList.add('open');
+  });
+});
+</script>
+{% endblock %}

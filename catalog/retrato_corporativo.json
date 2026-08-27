@@ -1,0 +1,104 @@
+{
+  "version": "1.0",
+  "id": "retrato_corporativo",
+  "name": "Retrato corporativo",
+  "category": "retrato",
+  "cover_image": "covers/retrato_corporativo.webp",
+  "recipe": {
+    "garment": {
+      "type": "camisa lisa",
+      "fabric": "algodon mate",
+      "colors": [
+        "blanco",
+        "azul claro",
+        "negro"
+      ],
+      "details": "cuello abierto, sin estampado"
+    },
+    "scene": {
+      "place": "fondo neutro gris claro degradado",
+      "time": null,
+      "depth": "fondo liso, sujeto separado del fondo"
+    },
+    "lighting": {
+      "key": "softbox frontal ligeramente elevado",
+      "fill": "reflector bajo para suavizar el menton",
+      "mood": "limpio, profesional, sombra minima"
+    },
+    "camera": {
+      "focal_mm": 85,
+      "aperture": "f/4.0",
+      "height": "ojos",
+      "framing": "primer plano"
+    },
+    "pose_family": [
+      "de frente",
+      "tres cuartos suave",
+      "hombros girados"
+    ]
+  },
+  "applies_to": {
+    "framing": [
+      "primer plano",
+      "medio"
+    ],
+    "needs_body": false,
+    "replaces_background": true,
+    "min_source_quality": 0.55
+  },
+  "variation_axes": [
+    "expression",
+    "garment_color",
+    "hair"
+  ],
+  "locks": [
+    "face",
+    "body_proportions",
+    "skin_tone",
+    "hair"
+  ],
+  "selectable": [
+    "garment",
+    "garment_color",
+    "expression",
+    "hair"
+  ],
+  "chips": {
+    "garment": [
+      "camisa lisa",
+      "blazer",
+      "jersey fino",
+      "blusa"
+    ],
+    "garment_color": [
+      "blanco",
+      "azul claro",
+      "negro",
+      "gris"
+    ],
+    "expression": [
+      "neutra",
+      "sonrisa suave",
+      "seria",
+      "sonrisa amplia"
+    ],
+    "hair": [
+      "el mio",
+      "suelto",
+      "recogido",
+      "coleta",
+      "ondas"
+    ]
+  },
+  "chip_stats": {},
+  "route_hint": "in_place_edit",
+  "learned_params": {},
+  "stats": {
+    "first_try_rate": null,
+    "avg_cost_usd": null,
+    "keep_rate": null,
+    "sessions": 0,
+    "last_shown_at": null
+  },
+  "enabled": true
+}

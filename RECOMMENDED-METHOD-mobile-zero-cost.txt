@@ -1,0 +1,1244 @@
+====================================================================================
+  AI PHOTO PRODUCTION ROBOT - FINAL DEVELOPMENT DIRECTION
+  Mobile website (PWA)  |  A few clicks  |  Zero typing  |  $0 fixed cost
+  Client: Nayane (Workana)      Revision 4 - 2026-08-22
+
+  CHANGED IN THIS REVISION
+    * DELIVERY SURFACE IS NOW A WEBSITE, not Telegram
+      A mobile web app she opens from her home screen like any other app.
+      No app store, no install, no account to create, no password.
+    * Everything Telegram was giving away must now be built: upload, auth,
+      gallery, notifications, progress UI. That is REAL WORK - honest
+      estimate +2 to +3 days on the 7-day plan. Section 9 says how to absorb it.
+    * One genuine UX WIN: the "send as Archivo, not as Foto" instruction
+      disappears. A web upload always sends the original. The compression
+      risk that worried us in the Telegram design is gone.
+    * Progressive preview loading - the six options appear one by one as
+      they finish, instead of all at once. Better than an album.
+    * Real comparison view, real gallery, real downloads - all awkward in a
+      chat, natural on the web.
+    * Still $0 fixed per month. The only optional cost in the entire project
+      is a domain name, ~$10-12/year, and even that has a free path.
+
+  UNCHANGED FROM REVISION 3.1
+    Photo-first entry - contextual style options - multi-select rows with
+    none/one/several semantics - two-stage generation (cheap previews, she
+    selects, full quality only on her choices) - the quality gate as sole
+    approver - $0 fixed infrastructure - Python + ONNX backend.
+====================================================================================
+
+
+------------------------------------------------------------------------------------
+ 0. THE DIRECTION IN ONE PARAGRAPH
+------------------------------------------------------------------------------------
+
+She opens the app from her phone's home screen. She taps one button and picks
+a photo. Style options appear, chosen by the robot for that photo. She marks
+what she wants - several per row if she likes - and taps once. Six options
+appear one by one within half a minute. She taps the keepers, and they arrive
+finished.
+
+One button, a few taps, under two minutes. No prompts, no menus to learn, no
+settings to understand, no password, no reviewing for defects, no retrying.
+
+The infrastructure remains free: a permanently-free cloud machine, automatic
+HTTPS, no monthly bill. Money is spent only when she generates, under caps she
+sets, at roughly $0.07 per finished photo.
+
+
+------------------------------------------------------------------------------------
+ 1. WHAT A WEBSITE COSTS, AND WHAT IT WINS
+------------------------------------------------------------------------------------
+
+This has to be said plainly, because it is the substance of the change.
+
+WHAT TELEGRAM WAS GIVING AWAY, THAT MUST NOW BE BUILT
+-----------------------------------------------------
+  Mobile UI on iPhone and Android      -> build it, responsive, touch-first
+  Photo picking and upload             -> build it, with retry on bad signal
+  Authentication                       -> build it (see below - it is easy)
+  Push notification when work finishes  -> build it, with an iOS caveat
+  Permanent gallery of everything made  -> build it
+  Progress feedback during a wait       -> build it (SSE - and it comes out
+                                           better than Telegram's)
+  Hosting of the client-facing surface  -> your machine now serves it
+
+  Honest estimate: +2 to +3 days. Not the six to eight weeks a full product
+  frontend would cost, because this flow is genuinely simple - an upload
+  button, seven rows of chips, two image grids and a gallery. There is no
+  dashboard, no settings maze, no design system to invent.
+
+WHAT THE WEBSITE WINS - AND SOME OF IT IS SIGNIFICANT
+-----------------------------------------------------
+  1. THE UPLOAD PROBLEM DISAPPEARS
+     In the Telegram design she had to remember to send photos as "Archivo"
+     and not as "Foto", or they arrived compressed and unusable. That was a
+     listed HIGH risk, mitigated only by detecting the mistake afterwards.
+     A web upload sends the original file every time. The instruction is
+     gone, the risk is gone, and for someone who told us plainly that file
+     handling is her difficulty, tapping one button and picking from her
+     camera roll is easier than anything Telegram could offer.
+
+  2. PROGRESSIVE RESULTS
+     Telegram albums arrive all at once, so six previews mean 25 seconds of
+     nothing followed by everything. On the web each preview appears the
+     moment it finishes. She watches the set fill in. The same wait feels
+     half as long, and it makes the robot look like it is working.
+
+  3. THE UI THIS FLOW ACTUALLY WANTS
+     Seven multi-select chip rows with a live combination counter is clumsy
+     as chat messages and natural as a web screen. Same for tap-to-select on
+     an image grid, pinch-to-zoom on a result, and a before/after comparison
+     slider - which was the one thing revision 3 could not do well.
+
+  4. IT IS HERS
+     Her own address, her own name on it, her own gallery. When she has
+     clients of her own it is already a product rather than a bot she has to
+     explain. The phase-2 multi-tenant product is this codebase, not a
+     rewrite.
+
+  5. NO PLATFORM DEPENDENCY
+     No third party's policy changes can affect the delivery of her work.
+
+WHAT IS GENUINELY WORSE
+-----------------------
+  1. She must open it once from a link and add it to her home screen. That is
+     a one-time, guided, two-minute step - and it needs hand-holding, because
+     she is not technical. Section 3 has the exact wording to send her.
+  2. Push notifications on iPhone only work once the app is on her home
+     screen. Section 6 covers this properly, including the fallback.
+  3. It is more code, so there is more that can break, and it must be kept
+     running. Telegram never went down on our account.
+
+THE RECOMMENDATION
+------------------
+Build the website. The upload win alone justifies it for this particular
+client, the flow suits a screen better than a chat, and it is the phase-2
+product built early rather than thrown away. But go in knowing it is +2 to +3
+days against a fixed budget, and cut Stage 6 items to phase 2 to pay for it.
+
+
+------------------------------------------------------------------------------------
+ 2. WHAT IT IS, TECHNICALLY - A PWA
+------------------------------------------------------------------------------------
+
+Not a native app. Not an app-store submission. A normal website, written so
+that a phone treats it like an app:
+
+  ADD TO HOME SCREEN     an icon on her phone, opens full screen, no browser
+                         chrome, no address bar. Indistinguishable from an app
+                         to a non-technical user
+  NO APP STORE           no USD 99/year, no review, no update cycle. You
+                         deploy, she reloads
+  NATIVE PHOTO PICKER    the phone's own camera-roll UI, one tap
+  WEB PUSH               background notification when a job finishes
+  OFFLINE SHELL          the app opens and shows her gallery even on a bad
+                         connection; only generation needs the network
+  ONE CODEBASE           iPhone, Android, and her laptop if she ever wants a
+                         big screen
+
+AUTHENTICATION - THE SIMPLEST THING THAT IS SAFE
+------------------------------------------------
+No password. No email verification loop. No "create an account".
+
+  You send her one private link, once. She opens it. A signed, long-lived
+  cookie is set on her phone and she is permanently logged in on that device.
+  Optionally a 4-digit PIN on open, if she wants her phone protected.
+
+  For a single-user private tool this is both the least friction possible and
+  entirely adequate. Multi-user auth arrives in phase 2, when there is
+  actually more than one user.
+
+
+------------------------------------------------------------------------------------
+ 3. THE COMPLETE INTERACTION
+------------------------------------------------------------------------------------
+
+FIRST TIME ONLY - SEND HER EXACTLY THIS
+---------------------------------------
+  ---------------------------------------------------------------------------
+  Nayane, aqui tienes tu estudio. Son dos minutos, una sola vez:
+
+  1. Abre este enlace desde el movil:  https://tu-estudio.___/e/xxxxx
+  2. Cuando se abra, pulsa el boton de COMPARTIR
+       iPhone: el cuadradito con la flecha hacia arriba, abajo en el centro
+       Android: los tres puntitos, arriba a la derecha
+  3. Baja y pulsa "Anadir a pantalla de inicio"
+  4. Pulsa "Anadir"
+
+  Ya esta. Te aparece un icono en el movil como cualquier otra aplicacion.
+  A partir de ahora entras desde ahi, sin enlaces y sin contrasenas.
+
+  Si algo no te cuadra, hazme una captura de lo que ves y te digo donde
+  pulsar.
+  ---------------------------------------------------------------------------
+
+
+THE MAIN FLOW
+-------------
+
+  SCREEN 1 - INICIO
+  -----------------
+      +------------------------------------------+
+      |  Tu estudio                              |
+      |                                          |
+      |         +--------------------+           |
+      |         |                    |           |
+      |         |     [ camera ]     |           |
+      |         |   SUBIR UNA FOTO   |           |
+      |         |                    |           |
+      |         +--------------------+           |
+      |                                          |
+      |  Ultimas sesiones                        |
+      |  [img] [img] [img] [img]  ->             |
+      |                                          |
+      +------------------------------------------+
+      |  Crear  |  Galeria  |  Favoritos | Ajustes|
+      +------------------------------------------+
+
+  One button. She taps it, her phone's normal photo picker opens, she picks
+  a photo. That is the whole entry. No instructions about file types.
+
+
+  SCREEN 2 - ESTILO          (appears ~4 s after upload)
+  -------------------------------------------------------
+      +------------------------------------------+
+      |  < atras        [thumbnail of her photo] |
+      |                                          |
+      |  ESTILOS RAPIDOS   un toque y listo      |
+      |  [Editorial] [Exterior] [Dorada] [Est.] >|
+      |                                          |
+      |  O ELIGE TU   puedes marcar varios       |
+      |                                          |
+      |  ROPA                                    |
+      |  (Vestido) (Traje) (Casual) (Deportivo)  |
+      |  (Abrigo) (Mi armario) (De una foto)     |
+      |                                          |
+      |  PELO                                    |
+      |  (El mio) (Suelto) (Recogido) (Coleta)   |
+      |                                          |
+      |  GESTO                                   |
+      |  (De pie) (Caminando) (Sentada)          |
+      |  (Apoyada) (Manos en la cintura)         |
+      |                                          |
+      |  EXPRESION                               |
+      |  (Neutra) (Sonrisa suave) (Seria)        |
+      |                                          |
+      |  ESCENARIO   LUZ   ENCUADRE      v mas   |
+      +------------------------------------------+
+      |  2 ropas x 2 gestos = 4 combinaciones    |
+      |         [  VER 6 OPCIONES  ]             |
+      +------------------------------------------+
+
+  Selected chips fill in and stay filled, so the screen always shows her
+  current choice. The bar at the bottom is sticky and updates live, so she
+  can see what she is asking for before she spends anything.
+
+  The style options are chosen for THIS photo - a close-up gets studio
+  portrait and black and white; a full-body shot in a plain room gets
+  exterior scenes and wardrobe changes. Ranking is applicability first, then
+  her own keep-rate, then freshness.
+
+
+  SCREEN 3 - OPCIONES        (fills in progressively, ~25 s total)
+  ----------------------------------------------------------------
+      +------------------------------------------+
+      |  Preparando opciones...        3 de 6    |
+      |                                          |
+      |  +--------+  +--------+                  |
+      |  | image  |  | image  |                  |
+      |  |   1    |  |   2    |                  |
+      |  +--------+  +--------+                  |
+      |  +--------+  +--------+                  |
+      |  | image  |  | shimmer|                  |
+      |  |   3    |  |  ...   |                  |
+      |  +--------+  +--------+                  |
+      |  +--------+  +--------+                  |
+      |  |shimmer |  |shimmer |                  |
+      |  +--------+  +--------+                  |
+      +------------------------------------------+
+
+  Each image appears the moment it is ready, pushed over SSE. She can start
+  choosing before the set is even finished.
+
+  Tapping an image marks it. Tapping it again unmarks it.
+
+      +------------------------------------------+
+      |  3 seleccionadas          aprox. $0.17   |
+      |    [  CREAR EN ALTA CALIDAD  ]           |
+      |    [ Otras 6 ]    [ Cambiar estilo ]     |
+      +------------------------------------------+
+
+
+  SCREEN 4 - RESULTADO       (~60 s)
+  -----------------------------------
+      +------------------------------------------+
+      |  Listas. 3 fotos - 1 min 48 s - $0.23    |
+      |                                          |
+      |  [ finished ]  [ finished ]  [ finished ]|
+      |                                          |
+      |  [ Descargar todas ]                     |
+      |  [ Mas como estas ] [ Otra foto ]        |
+      +------------------------------------------+
+
+  Tapping one opens it full screen: pinch to zoom, [ Descargar ],
+  [ Comparar con la original ] - a slider over the source photo - and
+  [ Mas como esta ].
+
+  Total: one button, a few taps, under two minutes. Nothing typed, nothing
+  reviewed for defects, nothing corrected, nothing rejected by her.
+
+
+MULTI-SELECT IS THE MECHANISM - THREE STATES PER ROW
+----------------------------------------------------
+Every attribute row accepts many selections, and how many she picks is what
+tells the robot what to do. One uniform rule:
+
+    NOTHING selected   ->  the robot varies it freely across the 6
+    ONE selected       ->  fixed. Identical in all 6
+    SEVERAL selected   ->  varies across EXACTLY those values, nothing else
+
+  She is not choosing one style - she is describing a space, and the previews
+  are drawn from inside it. "The dress and the casual outfit, standing and
+  walking, smiling softly" is four taps, and it is a photo shoot brief.
+
+  On the request it is one field, uniform across every attribute:
+
+    "selections": {
+      "garment":    ["vestido", "casual"],
+      "gesture":    ["de pie", "caminando"],
+      "expression": ["sonrisa suave"],
+      "hair":       ["el mio"],
+      "scene":      [],                      <- empty = robot varies it
+      "framing":    ["medio"]
+    }
+
+HOW THE SIX COVER HER SELECTION
+  combination space = cartesian product of the selected rows
+
+    space <= 6   cover EVERY combination, then use leftover slots to vary a
+                 row she left empty
+    space >  6   sample evenly across the space - never six variations of one
+                 corner - keeping a cursor so [ Otras 6 ] continues the walk
+                 instead of repeating it
+
+  Selecting more raises variety, not price. The number of previews is what
+  costs money, and it does not change.
+
+  Previews drawn from what she actually asked for get kept more often than
+  ones the robot guessed at, so multi-select should also lower cost per
+  finished photo. Real effect, unmeasured until the POC - do not put a number
+  on it for her yet.
+
+GESTURE CHIPS ARE ORDERED BY RELIABILITY
+  Hands are where generators fail most, and the gate already measures it.
+  Sort the GESTO chips by their own first-try rate, so reliable poses sit
+  first and fragile ones sit last. She never sees the mechanism; she just
+  finds the obvious choices work.
+
+
+THE OTHER WAYS TO SET STYLE - ALL TAP OR VOICE, NEVER COMPOSITION
+-----------------------------------------------------------------
+  A. CHIP ROWS - the everyday method, shown above.
+
+  B. REFERENCE PHOTO - she uploads a photo she is not in. The app detects
+     that automatically and asks what to take from it:
+       [ La ropa ] [ El peinado ] [ La pose ] [ La luz ] [ El sitio ]
+     The garment is read - cut, fabric, colour, length, neckline - and
+     becomes one more chip in the ROPA row, so it combines with everything
+     else. Same upload button, two meanings, resolved by the robot.
+     This is the method she will reach for most.
+
+  C. HER OWN WARDROBE - garments photographed once become named, reusable
+     chips: ( Mi vestido negro ). Upload once, tap forever.
+
+  D. REFINE FROM A RESULT - any finished image offers [ Mas como esta ] and
+     [ Igual pero otra ropa / otro sitio / otra pose / otra expresion ].
+     One axis changes, everything else holds, seeded from an image she has
+     already approved. Highest hit rate in the product.
+
+  E. VOICE - a microphone button on the style screen. She says it out loud,
+     it is transcribed, turned into chip selections, and shown back marked so
+     she sees what was understood before anything is generated. For someone
+     who dislikes technical interfaces, speaking beats typing. Typed text
+     also works but stays out of the interface.
+
+
+SAFE DEFAULTS - LOCKED UNLESS SHE ASKS
+--------------------------------------
+  Face, body proportions and skin tone are ALWAYS locked and are not offered
+  as options in the POC.
+
+  Hair defaults to HER hair and is never a variation axis. Changing it is a
+  deliberate tap, because hair strongly affects whether an image reads as her.
+
+  Body adjustment: the brief asked for natural aesthetic adjustment; she later
+  complained a tool had slimmed her unasked. One rule satisfies both - the
+  proportion check blocks ANY unrequested body change and relaxes only for
+  the axis she explicitly requested, by the amount requested. Never automatic,
+  never silent. Deferred to phase 2 regardless.
+
+
+WHAT SHE NEVER DOES
+-------------------
+  * Never writes a prompt
+  * Never types a password or creates an account
+  * Never chooses a file type or worries about compression
+  * Never sees a model name, a parameter or a seed
+  * Never sees a defective hand, a warped limb or a slimmed jawline
+  * Never reviews for defects - the gate does that
+  * Never describes a correction
+  * Never chooses a provider, a resolution or a setting
+
+
+THE FOUR TABS
+-------------
+  CREAR       the upload button and recent sessions
+  GALERIA     everything ever made, filterable by style, downloadable,
+              select-many-and-download
+  FAVORITOS   what she kept, each with [ Mas como esta ]
+  AJUSTES     four items only - calidad vs coste, entregas automaticas,
+              limite de gasto, saldo
+
+
+------------------------------------------------------------------------------------
+ 4. THE LOOK CATALOG AND THE PROPOSAL ENGINE
+------------------------------------------------------------------------------------
+
+Unchanged from revision 3.1. The catalog is where your expertise is stored so
+she never has to supply any, and it is matched against the photo she just
+uploaded rather than browsed.
+
+A LOOK IS A STRUCTURED RECIPE, NOT A TEXT PROMPT
+------------------------------------------------
+
+  {
+    "id": "moda_terraza_atardecer",
+    "name": "Terraza al atardecer",
+    "category": "moda",
+    "cover_image": "covers/terraza.jpg",
+
+    "recipe": {
+      "garment":  { "type": "vestido largo", "fabric": "satinado",
+                    "colors": ["negro", "verde oscuro", "burdeos"] },
+      "scene":    { "place": "terraza urbana", "time": "hora dorada",
+                    "depth": "ciudad desenfocada al fondo" },
+      "lighting": { "key": "sol bajo lateral", "fill": "rebote suave" },
+      "camera":   { "focal_mm": 85, "aperture": "f/2.0",
+                    "height": "pecho", "framing": "plano medio" },
+      "pose_family": ["de pie apoyada", "caminando", "girando"]
+    },
+
+    "applies_to": {
+      "framing":     ["medio", "cuerpo entero"],
+      "needs_body":  true,
+      "replaces_background": true,
+      "min_source_quality": 0.6
+    },
+
+    "variation_axes": ["gesture", "camera_angle", "garment_color", "expression"],
+    "locks": ["face", "body_proportions", "skin_tone", "hair"],
+    "selectable": ["garment", "hair", "gesture", "expression",
+                   "scene", "light", "framing"],
+    "chips": {
+      "garment":    ["vestido", "traje", "casual", "deportivo", "abrigo"],
+      "hair":       ["el mio", "suelto", "recogido", "coleta", "ondas"],
+      "gesture":    ["de pie", "caminando", "sentada", "apoyada", "girando",
+                     "manos en la cintura", "mano en el pelo"],
+      "expression": ["neutra", "sonrisa suave", "sonrisa amplia", "seria",
+                     "mirada baja", "riendo"],
+      "scene":      ["como esta", "exterior", "estudio", "ciudad", "playa"],
+      "light":      ["como esta", "natural", "dorada", "estudio", "dramatica"],
+      "framing":    ["como esta", "cuerpo entero", "medio", "primer plano"]
+    },
+    "chip_stats": { },
+
+    "route_hint": "in_place_edit",
+    "learned_params": { },
+    "stats": { "first_try_rate": null, "avg_cost": null, "keep_rate": null }
+  }
+
+  applies_to makes contextual proposal possible - it rules out a full-body
+  scene when she uploaded a head-and-shoulders photo.
+
+  selectable and chips define the multi-select rows. chip_stats accumulates
+  per-chip first-try and keep rates, which orders the GESTO row by
+  reliability and lets dead chips be retired.
+
+  A QUICK STYLE IS JUST A SAVED SELECTION. Tapping [ Editorial moda ] fills
+  every row at once and jumps straight to previews. One mechanism underneath,
+  with shortcuts on top - not two systems to build.
+
+THE PROPOSAL ENGINE - RULES AND STATISTICS, NO TRAINING
+-------------------------------------------------------
+  score = applicability(photo, look.applies_to)      hard filter
+        + w1 * look.stats.keep_rate                  her taste
+        + w2 * freshness(look, recent_sessions)      keeps the grid alive
+        + w3 * look.stats.first_try_rate             favours what works
+
+  Top 4-6 become the quick-style tiles; the rest sit behind "Ver todos".
+
+COVERS BECOME HERS
+------------------
+Tiles ship with covers you generate. After the first sessions, replace each
+cover with her own best kept result in that style. The grid then shows her
+face in every option - far more persuasive than generic examples, and free,
+because the images already exist.
+
+WHO FILLS THE CATALOG
+---------------------
+You do, once. Budget a full day for 15-20 looks. Manual professional work,
+and it is what she is actually buying - weak recipes make a weak product no
+matter how good the pipeline is.
+
+  Moda 5-6 - Retrato 3-4 - Escenarios 3-4 - Producto 2-3 - Estacional 2-3
+
+The catalog is data, not code. Adding a look is one JSON file.
+
+
+------------------------------------------------------------------------------------
+ 5. ARCHITECTURE
+------------------------------------------------------------------------------------
+
+              HER PHONE - PWA on the home screen
+                            |
+                   HTTPS (automatic certificate)
+                            |
+   +------------------------v------------------------------+
+   |  CADDY          TLS, static assets, image serving,     |
+   |                 reverse proxy to the app               |
+   +------------------------+------------------------------+
+                            |
+   +------------------------v------------------------------+
+   |  FASTAPI                                               |
+   |    pages          upload, style, previews, result,     |
+   |                   gallery, settings                    |
+   |    REST           /upload /propose /previews /finalise |
+   |    SSE            live progress and image-ready events |
+   |    auth           signed cookie from the private link  |
+   |    web push       job-finished notification            |
+   +------------------------+------------------------------+
+                            |
+   +------------------------v------------------------------+
+   |  PHOTO ROUTER    is she in this photo?      ~4 s       |
+   |                  yes -> analyse as source              |
+   |                  no  -> ask what to take from it       |
+   +------------------------+------------------------------+
+                            |
+   +------------------------v------------------------------+
+   |  ANALYSER (opus 5)  photo -> AttributeIR               |
+   |                     framing, setting, garment, light,  |
+   |                     pose, quality. locks / mutable     |
+   +------------------------+------------------------------+
+                            |
+   +------------------------v------------------------------+
+   |  PROPOSAL ENGINE    catalog x photo -> ranked tiles    |
+   +------------------------+------------------------------+
+                            |
+                    she selects and taps
+                            |
+   +------------------------v------------------------------+
+   |  STAGE A - PREVIEWS                  ~25 s, ~$0.05     |
+   |    compiler walks the combination space + selections   |
+   |    6 concurrent generations, cheap model, low res      |
+   |    FREE CPU SCREEN ONLY:                               |
+   |      face identity  ArcFace cosine                     |
+   |      proportions    pose keypoints vs day-1 baseline   |
+   |      hands          keypoint confidence                |
+   |      sanity         black frame, duplicate, NSFW       |
+   |    obvious failures replaced silently, no VLM spend    |
+   |    EACH RESULT PUSHED OVER SSE THE MOMENT IT LANDS     |
+   +------------------------+------------------------------+
+                            |
+                    she taps the keepers
+                            |
+   +------------------------v------------------------------+
+   |  STAGE B - FINALS                ~60 s, ~$0.057 each   |
+   |    derived from the chosen preview, full resolution    |
+   |    FULL GATE:                                          |
+   |      identity, containment, proportions, skin deltaE,  |
+   |      hands, artefacts, aesthetic       all free, CPU   |
+   |      visual judge  claude-haiku-4-5    $0.0065         |
+   |    repairable defect -> silent region inpaint -> re-QA |
+   |    unrepairable      -> regenerate, still silent       |
+   +------------------------+------------------------------+
+                            |
+   +------------------------v------------------------------+
+   |  PREFERENCE LEARNER                                    |
+   |    chosen previews   = positive labels                 |
+   |    ignored previews  = negative labels, free           |
+   |    -> promote winning params into learned_params       |
+   |    -> reorder tiles and chips by keep_rate             |
+   |    -> bandit reward = chosen-per-euro                  |
+   |    -> refit gate thresholds toward her taste           |
+   +--------------------------------------------------------+
+
+  Every check except the visual judge runs on CPU at zero marginal cost.
+  That is what keeps the fixed monthly cost at zero.
+
+
+IMAGE DELIVERY - A NEW CONCERN THAT TELEGRAM HANDLED FOR US
+-----------------------------------------------------------
+Full-resolution photos over mobile data are slow and expensive for her.
+
+  Grids       WebP thumbnails, ~40 KB each, generated once on arrival
+  Full screen medium WebP, ~200 KB
+  Download    original full-resolution file, only when she asks
+  Caching     immutable URLs with long cache headers; Caddy serves them
+              directly without touching the app
+
+  Without this the gallery is unusable on a phone. It is half a day of work
+  and it is not optional.
+
+
+UPLOAD RELIABILITY - THE OTHER THING TELEGRAM DID FOR FREE
+----------------------------------------------------------
+  Client-side resize before upload only if the file is enormous - never
+  below the quality floor the profile needs. Retry with backoff on a dropped
+  connection. Show real upload progress. Accept HEIC and convert server-side
+  with pillow-heif. Never silently drop a photo.
+
+
+PREVIEW FIDELITY - THE ONE REAL RISK, AND HOW IT IS HANDLED
+-----------------------------------------------------------
+If a chosen preview does not become the final she expected, the whole design
+collapses. Two ways to guarantee it, decided on day 3 with real measurement:
+
+  PREFERRED   img2img from the accepted preview at low denoise, plus upscale.
+              The final is provably derived from the image she chose, so it
+              cannot drift. Slight ceiling on maximum quality.
+
+  ALTERNATIVE same seed and parameters re-rendered at full resolution.
+              Higher quality ceiling, but seed behaviour across resolutions
+              varies by provider and must be measured, not assumed.
+
+  Decision rule: measure drift on ~20 pairs. Below the agreed perceptual
+  threshold, use the alternative; otherwise the preferred. Either way she
+  gets what she picked.
+
+  If a final fails the gate outright it is regenerated silently. If it fails
+  repeatedly it is dropped and she is told plainly which one and why - the
+  only place in the product where she sees a failure, and it should be rare.
+
+
+THE FOUR CONTRACTS
+------------------
+No module anywhere references a provider by name:
+
+  LookRecipe          applies_to, variation_axes, locks, selectable, chips
+  AttributeIR         her identity and the scene; locks and mutable
+  QAReport            verdict, scores, defects with bounding boxes, action
+  ProviderDescriptor  capabilities, resolution, cost, latency, quality priors
+
+Adding a provider = one ~150-line adapter plus a descriptor. Adding a look =
+one JSON file. Neither touches the pipeline.
+
+
+LEARNING - WHAT IT REALLY IS
+----------------------------
+With one user there is no data to train a model, and saying otherwise would
+be selling air. Three mechanisms, working from about the tenth session:
+
+  1. PARAMETER MEMORY  parameters behind chosen previews get promoted into
+                       that look's learned_params and seed the next session
+  2. PROVIDER BANDIT   Thompson sampling per (look, provider), rewarded on
+                       chosen-per-euro, not merely on passing the gate
+  3. THRESHOLD FITTING where her choices disagree with the gate's ranking,
+                       the gate is wrong. Fit the cutoffs to her, not to a
+                       paper
+
+Every session produces both positive and negative labels for free: six shown,
+three chosen, three not. That is real preference data at zero effort from her.
+
+
+------------------------------------------------------------------------------------
+ 6. TECHNOLOGY STACK
+------------------------------------------------------------------------------------
+
+BACKEND LANGUAGE   Python 3.11
+
+  Most of the real work is the quality gate - face identity, body
+  proportions, hand defects, change containment - and every mature library
+  for it is Python-only.
+
+
+FRONTEND - DELIBERATELY LEAN
+----------------------------
+    FastAPI + Jinja2 templates      server-rendered pages
+    Alpine.js                       chip toggles, selection state, counters
+    Tailwind (pre-built CSS file)   no Node build step in the repo
+    Server-Sent Events              live progress and image-ready pushes
+    Vanilla service worker          offline shell, install prompt, push
+    manifest.json + icons           add-to-home-screen
+
+  WHY NOT REACT OR NEXT.JS
+  This UI is an upload button, seven chip rows, two image grids and a
+  gallery. Alpine handles that in a few hundred lines with no build
+  pipeline, no Node in the container, and one deployable artefact. A React
+  frontend would add a second toolchain and a build step to a one-week
+  project without improving anything the user can see.
+
+  Phase 2, when this becomes a branded multi-tenant product with client
+  accounts, is the right moment for Next.js - and the Python API underneath
+  does not change when that happens.
+
+  Progressive enhancement matters here: the chip rows must work as plain
+  form controls even if JavaScript is slow to boot on her phone.
+
+
+BACKEND
+-------
+    fastapi + uvicorn              app and API
+    jinja2                         templates
+    sse-starlette                  progress and image-ready events
+    itsdangerous                   signed session cookie
+    pywebpush                      web push notifications
+    APScheduler                    standing orders, in-process
+    pydantic 2.x                   the four contracts
+    sqlalchemy 2.x                 over SQLite
+    pillow + pillow-heif           image IO, HEIC decode, WebP derivatives
+    numpy                          vectors, similarity, pixel math
+
+COMPUTER VISION - ONNX ONLY, NO PYTORCH
+---------------------------------------
+    onnxruntime                    one inference runtime, CPU, ARM-ready
+    insightface                    buffalo_l -> detect + ArcFace embedding
+    opencv-python-headless         alignment, masks, colour space, blur
+    scikit-image                   SSIM for change containment
+    RTMPose or YOLOv8-pose .onnx   body keypoints -> proportion check
+    hand keypoint model .onnx      finger count and confidence
+
+    DELIBERATE CONSTRAINT: no PyTorch. ~2 GB dependency, the usual cause of
+    ARM build failures, and every metric here is achievable with
+    ONNX + OpenCV + scikit-image.
+
+LANGUAGE MODELS
+---------------
+    anthropic                      official SDK
+      claude-opus-5     photo analysis, prompt compiler, repair planner
+      claude-haiku-4-5  visual judge, on FINALS ONLY
+    Speech-to-text for voice input; the parse reuses the existing analyser.
+
+IMAGE GENERATION
+----------------
+    httpx                          one thin adapter per provider
+    Two tiers required: a cheap fast model for previews, a quality model for
+    finals. Both behind ProviderDescriptor, selected by capability, never by
+    name.
+
+SERVING AND PACKAGING
+---------------------
+    Caddy                          automatic HTTPS via Let's Encrypt, static
+                                   files, reverse proxy. TLS is one config
+                                   line and renews itself
+    Docker + docker compose        two containers: app and Caddy
+
+
+WEB PUSH - THE ONE PLATFORM CAVEAT, STATED PLAINLY
+--------------------------------------------------
+  Android          works in the browser, no install needed
+  iPhone           works ONLY after "Add to home screen" (iOS 16.4+)
+
+  This is the single reason the home-screen step in section 3 is not
+  optional. Handle it properly:
+    * Prompt for install on her first visit, with the exact wording
+    * Ask for notification permission only AFTER the first successful
+      session, when the value is obvious - never on first load
+    * If permission is refused or unavailable, fall back gracefully: the page
+      keeps a live SSE connection while open, and the result is waiting in
+      the gallery when she returns
+
+  Given that previews take ~25 seconds and finals ~60, she will usually just
+  keep the screen open. Push is a convenience here, not load-bearing - which
+  is a direct benefit of the two-stage design.
+
+  Optional belt-and-braces: a Telegram bot kept purely as a notification
+  channel. Free, works everywhere including iOS without install. It
+  reintroduces a platform dependency for notifications only, and it is worth
+  considering if push proves unreliable on her phone.
+
+
+LATENCY BUDGET - A PRODUCT REQUIREMENT, NOT A NICE-TO-HAVE
+----------------------------------------------------------
+  upload -> style screen        target  4 s
+  tap -> first preview visible  target 12 s     (progressive: first, not all)
+  tap -> all six visible        target 25 s
+  selection -> finals           target 60 s
+  ------------------------------------------------------------------
+  photo to finished set         target under 2 minutes
+
+  Fan out with an asyncio semaphore at 6 for generation; cap CV concurrency
+  separately at 2-3 so the event loop is not starved on a 4-core machine.
+  Serial execution breaks the feel of the product entirely.
+
+
+------------------------------------------------------------------------------------
+ 7. INFRASTRUCTURE - STILL $0 FIXED
+------------------------------------------------------------------------------------
+
+  Compute      Oracle Cloud "Always Free" ARM  4 cores / 24 GB / 200 GB
+               Free permanently, not a trial. Runs app, Caddy, database,
+               CV and image serving comfortably for one user.
+  Database     SQLite, single file. Backup = copy one file.
+  Job queue    SQLite jobs table + async worker. No Redis, no broker.
+  Scheduler    APScheduler in-process. No cron, no extra service.
+  Image store  Local disk (200 GB), optional Cloudflare R2 free tier backup.
+  TLS          Caddy + Let's Encrypt. Automatic, free, self-renewing.
+  CDN          Cloudflare free tier in front, optional.
+
+  FIXED MONTHLY COST: $0.00
+
+THE ADDRESS - THE ONLY OPTIONAL COST IN THE PROJECT
+---------------------------------------------------
+  FREE PATH        a free subdomain (DuckDNS or similar) plus Caddy's
+                   automatic certificate. Works perfectly. The address looks
+                   like nayane-studio.duckdns.org - which is fine while she
+                   is the only user.
+
+  RECOMMENDED      a real domain, ~USD 10-12/year. Worth it the moment she
+                   shows this to a client of her own, because the address is
+                   her brand. Her decision, not a technical requirement.
+
+  Either way the certificate is free and automatic.
+
+FALLBACKS IF ORACLE FREE ARM CAPACITY IS UNAVAILABLE
+----------------------------------------------------
+  1. Google Cloud Run           scale-to-zero; cold starts fight the 4-second
+                                style-screen target - measure before choosing
+  2. Any spare always-on PC     with a Cloudflare Tunnel, no port forwarding
+  3. Small VPS                  ~USD 5/month, the only scenario with a fixed
+                                cost
+
+  Two containers, no external service dependencies. Relocation is minutes.
+
+
+------------------------------------------------------------------------------------
+ 8. COST MODEL
+------------------------------------------------------------------------------------
+
+FIXED MONTHLY
+-------------
+  Compute, database, storage, scheduler, TLS, hosting     $0.00
+  App store fees (not applicable)                         $0.00
+  ------------------------------------------------------------
+  TOTAL FIXED                                             $0.00 / month
+  Optional domain                                         ~$1 / month equiv.
+
+
+PER SESSION (order of magnitude - RE-VERIFY PROVIDER PRICING AT BUILD TIME)
+--------------------------------------------------------------------------
+  Worked example: one photo, one style, 6 previews, she keeps 3
+
+    Photo analysis + compiler (opus 5, once)                  $0.004
+    6 previews @ ~$0.008  (cheap model, low resolution)       $0.048
+    CPU screening of previews                                 $0.000
+    3 finals @ ~$0.040    (quality model, full resolution)    $0.120
+    3 judge calls @ $0.0065                                   $0.020
+    ~1 silent repair                                          $0.018
+    All CPU gate checks, thumbnails, serving                  $0.000
+    ------------------------------------------------------------
+    SESSION TOTAL                                             $0.210
+    PER DELIVERED PHOTO                                       $0.070
+
+  If she keeps all 6:  ~$0.39 total  ->  ~$0.065 per photo
+  If she keeps only 1: ~$0.13 total  ->  she still paid only $0.05 to see
+                                          six real options
+
+  The saving over a one-stage design is structural, not a trick: the
+  expensive model, the visual judge and the repair loop only ever run on
+  images she has already chosen.
+
+  One-time identity profile (LoRA), if used                 $2 - $4
+
+  Claude API rates used above (first-party, current):
+    claude-opus-5      $5 / $25   per million tokens in / out
+    claude-haiku-4-5   $1 / $5    per million tokens in / out
+
+  Image generation prices move quickly - confirm before quoting her a figure.
+
+
+THE QUALITY-VS-COST DIAL
+------------------------
+  ECONOMICO        4 previews
+  EQUILIBRADO      6 previews     default
+  MAXIMA CALIDAD   9 previews, finals at the highest tier
+
+SPENDING CAPS - MANDATORY
+-------------------------
+  * Per-session cap    estimated and shown before Stage A; abort rather than
+                       exceed
+  * Daily cap          rolling 24 h
+  * Balance floor      stop at zero, notify, never go negative
+
+  Every session reports its actual cost on delivery. She always knows.
+
+
+THE METRIC, STATED HONESTLY
+---------------------------
+  Her requirement: "if I need 5 manual attempts, the robot should need 1 or 2."
+
+  DELIVERED IN FULL
+    * Her attempts -> 0. She does not attempt anything. She uploads a photo
+      and picks from what comes back.
+    * Her time -> under two minutes per session.
+    * Defective deliverables -> approximately zero. The full gate is the only
+      approver of finals.
+    * Repetitive work eliminated: no prompt writing, no model choosing, no
+      defect hunting, no correcting, no retrying.
+
+  MUST BE SAID BEFORE THE POC, NOT AFTER
+    * Cost per finished photo does not fall 5x. It lands around $0.07,
+      because selection happens before the expensive step - not because
+      generation got cheaper.
+    * Preview-to-final fidelity is validated on day 3. If it cannot be made
+      reliable the design falls back to single-stage and cost returns to
+      about $0.10. A disappointment, not a failure.
+    * The website adds 2-3 days over the chat-based design. That is bought
+      with scope moved to phase 2, not with corners cut on the quality gate.
+
+
+------------------------------------------------------------------------------------
+ 9. DEVELOPMENT STAGES
+------------------------------------------------------------------------------------
+
+  9-10 working days, up from 7. The extra days are the web surface. To hold
+  the original budget, the items marked -> PHASE 2 below move out of scope.
+
+STAGE 0 - SETUP                                              ~3 hours, day 0
+---------------------------------------------------------------------------
+  [ ] Oracle Always Free ARM provisioned; Docker + compose
+  [ ] Caddy with automatic HTTPS on a free subdomain - verify the padlock
+      from her phone before anything else is built
+  [ ] Repo skeleton, .env, FastAPI answering /health
+  [ ] Verify aarch64 wheels install: onnxruntime, opencv-headless, numpy,
+      insightface. BEFORE writing pipeline code.
+  [ ] Small prepaid balances on the AI providers - the only spend
+  EXIT: an HTTPS URL that loads on her phone.
+
+
+STAGE 1 - PROFILE FROM THE PHOTOS ALREADY RECEIVED                    day 1
+---------------------------------------------------------------------------
+  Photos are in hand. Single pass, nothing asked of her.
+
+  [ ] Quality screen: sharpness, exposure, resolution, single face,
+      occlusion, perceptual dedup
+  [ ] Silent beautify and compression detection
+  [ ] Identity profile: ArcFace embedding centroid + variance
+  [ ] BODY PROPORTION BASELINE from full-body shots - shoulder/hip ratio,
+      height-in-heads, limb ratios. The anti-slimming reference
+  [ ] Coverage assessment -> is LoRA viable; if so start it today, ~30 min
+  [ ] EXIF and GPS strip, consent record written
+  [ ] Freeze the four contract schemas
+  EXIT: one short message to her - photos usable, what the profile covers,
+        anything missing. The only thing she is asked in the entire build.
+
+
+STAGE 2 - LOOK CATALOG AND PROPOSAL ENGINE                          day 1-2
+---------------------------------------------------------------------------
+  *** Manual professional work. This is the deliverable. ***
+
+  [ ] LookRecipe schema implemented and frozen
+  [ ] 15-20 looks authored across moda / retrato / escenarios / producto
+  [ ] applies_to filled per look
+  [ ] Chip vocabulary authored per category
+  [ ] Cover image per look
+  [ ] Proposal engine: photo attributes x catalog -> ranked tiles
+  EXIT: given a photo, six sensible, clearly relevant styles come back.
+        Nothing generates yet.
+
+  Budget a full day. No amount of engineering compensates for weak recipes.
+
+
+STAGE 3 - THE WEB APP SHELL                                         day 2-3
+---------------------------------------------------------------------------
+  *** New in revision 4. This is the added cost of choosing a website. ***
+
+  [ ] PWA: manifest, icons, service worker, offline shell, install prompt
+  [ ] Auth: private link -> signed cookie -> permanently logged in
+  [ ] Upload: native picker, HEIC accepted, progress, retry on failure,
+      no client-side quality loss
+  [ ] Four tabs: Crear, Galeria, Favoritos, Ajustes
+  [ ] Style screen: seven multi-select chip rows, sticky combination counter
+  [ ] Image derivatives: WebP thumbnail and medium on arrival, cached,
+      served by Caddy
+  [ ] SSE channel: progress and image-ready events
+  [ ] Responsive and touch-first; verified on her actual phone model
+  EXIT: she uploads a photo from her phone, sees the style screen, and can
+        make selections. Nothing generates yet.
+
+
+STAGE 4 - ROUTER, ANALYSER, COMPILER, ADAPTERS                      day 3-4
+---------------------------------------------------------------------------
+  [ ] PHOTO ROUTER: is she in this photo? -> source path or reference path
+  [ ] Reference path: what to take from it -> VLM extraction -> chip
+  [ ] Analyser: photo -> AttributeIR via claude-opus-5, Pydantic-validated
+  [ ] Compiler: recipe + profile + combination slot + selections -> prompt,
+      negatives, parameters, per provider dialect
+  [ ] Combination space = cartesian product of selected rows
+        space <= N -> cover every combination, fill leftovers from empty rows
+        space >  N -> stratified sample, cursor kept for [ Otras 6 ]
+  [ ] Quick styles as saved selections filling every row
+  [ ] Two provider adapters behind ProviderDescriptor - cheap tier for
+      previews, quality tier for finals
+  [ ] *** VALIDATE PREVIEW FIDELITY *** ~20 pairs, measure drift, choose
+      img2img-from-preview or same-seed-re-render. This gates Stage 6
+  [ ] Per-call cost recording from the first request
+  EXIT: a tap produces six genuinely different images, and a chosen one
+        reliably becomes the same image at full resolution.
+
+
+STAGE 5 - THE QUALITY GATE   *** THE PRODUCT ***                    day 5-6
+---------------------------------------------------------------------------
+  The gate is the only approver of finals. There is no human behind it.
+
+  [ ] FREE CPU SCREEN for previews: identity, proportions, hands, sanity
+  [ ] FULL GATE for finals, adding change containment (SSIM off-mask), skin
+      tone (CIELAB deltaE), artefacts, aesthetic, visual judge
+  [ ] Body proportions against the day-1 baseline - catches slimming
+  [ ] Composite ranking score, used to order the preview grid
+  [ ] CALIBRATE ON HER OWN PHOTOS. ~40 candidates across several styles;
+      show her the borderline ones in the web grid, fit cutoffs to her
+      answers. The one hour of her time the project genuinely needs
+  EXIT: the gate rejects a defective hand and a slimmed jawline every time,
+        and its ranking agrees with her choices on a held-out set.
+
+  Her earlier complaint that she "came out slimmer" is caught by the
+  proportion and jaw-width checks. Showing her that one measurement is the
+  most persuasive moment in the whole POC.
+
+
+STAGE 6 - TWO-STAGE ORCHESTRATOR AND SILENT REPAIR                  day 6-7
+---------------------------------------------------------------------------
+  [ ] Stage A: 6 concurrent previews, CPU screen, silent replacement,
+      each pushed over SSE the moment it lands
+  [ ] Selection UI: tap to mark, live count and cost estimate
+  [ ] Stage B: finals using the fidelity method chosen in Stage 4
+  [ ] Silent repair: bbox -> mask -> dilate -> feather -> region inpaint
+      -> re-QA region -> seam check. Never asks permission
+  [ ] Unrepairable -> regenerate silently; persistent failure -> say which
+      one and why, plainly
+  [ ] Full-screen viewer: pinch zoom, download, comparison slider
+  [ ] Preview count dial: 4 / 6 / 9
+  [ ] Hard caps: per session, per day, balance floor
+  [ ] Latency instrumentation against the section 6 budget
+  EXIT: photo to finished set in under two minutes, no failure surfaced.
+
+
+STAGE 7 - LEARNING, GALLERY, LEDGER                                 day 8-9
+---------------------------------------------------------------------------
+  [ ] Chosen and unchosen previews captured as positive and negative labels
+  [ ] Promote winning parameters into learned_params
+  [ ] Bandit reward = chosen-per-euro
+  [ ] Tile and chip ranking by keep_rate; covers replaced with her results
+  [ ] Gallery: filter by style, multi-select download
+  [ ] [ Mas como esta ] and refine-one-axis on finals
+  [ ] Ledger: per call, per session, per delivered photo, running total
+  [ ] Ajustes: dial, caps, balance
+  [ ] Web push, requested after the first successful session
+  ---- the following move to PHASE 2 if the budget is tight ----
+  [ ] -> PHASE 2  Personal wardrobe
+  [ ] -> PHASE 2  Voice input
+  [ ] -> PHASE 2  Standing orders / scheduled deliveries
+  EXIT: session 15 is measurably cheaper and better-liked than session 3,
+        and the log proves it.
+
+
+STAGE 8 - PROOF AND HANDOVER                                          day 10
+---------------------------------------------------------------------------
+  [ ] Run her 2-3 manual reference cases; compare side by side in the app's
+      own comparison view, with attempt counts for both
+  [ ] Cost report: per delivered photo, per session, projected monthly
+  [ ] Provider swap demonstrated live by editing configuration
+  [ ] Install walkthrough with her, on her phone, start to finish
+  [ ] One-page handover in Spanish: upload, choose, pick. No jargon
+  EXIT: she can see, on her own phone, what took her 5 attempts against what
+        the robot delivered in a few taps, with the receipts.
+
+
+PHASE 2 - ONLY IF THE POC VALIDATES (separate budget)
+-----------------------------------------------------
+  * Multi-tenant: her own clients, isolated profiles, per-client consent
+  * Next.js frontend when a branded product is wanted - the Python API
+    underneath does not change
+  * She authors her own styles by voice, saved to the catalog
+  * Personal wardrobe, standing orders, prepaid top-up without your
+    involvement
+  * Router and adapters to Go if call volume justifies it
+
+  Everything built in the POC becomes the phase-2 backend unchanged.
+
+
+------------------------------------------------------------------------------------
+ 10. RISKS
+------------------------------------------------------------------------------------
+
+  RISK   Preview does not faithfully predict the final
+  IMPACT HIGH - the central technical risk
+  FIX    Validated day 4 on ~20 measured pairs, before Stage 6 depends on it.
+         Preferred method makes drift structurally impossible. Fallback is
+         single-stage at ~$0.10.
+
+  RISK   She never completes "add to home screen"
+  IMPACT HIGH - without it there is no icon and no iOS push, and she may
+         simply not come back
+  FIX    Do it WITH her on a call, on her phone, once. Do not send
+         instructions and hope. The exact wording is in section 3, but the
+         walkthrough is what actually works. It is also the last item in
+         Stage 8 for a reason.
+
+  RISK   Web push unreliable on her device
+  IMPACT MEDIUM
+  FIX    Push is a convenience, not load-bearing - waits are 25 and 60
+         seconds and the SSE connection covers an open page. Results always
+         wait in the gallery. Optional Telegram notification channel as
+         belt-and-braces.
+
+  RISK   Website adds days the budget does not have
+  IMPACT HIGH
+  FIX    Named explicitly: wardrobe, voice and standing orders move to phase
+         2. Say this in writing before starting, not when the week runs out.
+
+  RISK   Gallery unusable on mobile data
+  IMPACT MEDIUM
+  FIX    WebP derivatives and cache headers from day one, not as an
+         optimisation later. Half a day, in Stage 3.
+
+  RISK   Style tiles feel irrelevant to the photo she uploaded
+  IMPACT HIGH - the proposal is the "it thinks" moment
+  FIX    applies_to filters hard before ranking. Test across her real photo
+         types on day 2. Always offer "Ver todos".
+
+  RISK   The catalog is too narrow and she gets bored
+  IMPACT HIGH
+  FIX    15-20 looks at launch, not 6. Rotate seasonal looks. Watch keep_rate
+         and retire dead ones. [ Mas como esta ] gives infinite depth inside
+         a style she already likes.
+
+  RISK   The gate is the only approver and lets something bad through
+  IMPACT HIGH - no human safety net
+  FIX    Stage 5 calibration on her own photos, held-out validation set,
+         conservative thresholds at launch. Better to over-reject early - it
+         costs money, not trust.
+
+  RISK   Latency budget missed; two minutes becomes six
+  IMPACT MEDIUM - it changes the feel of the product completely
+  FIX    Concurrency from the start, not as an optimisation. Progressive SSE
+         delivery hides part of the wait. Cheap preview tier is
+         non-negotiable.
+
+  RISK   The site goes down and nobody notices
+  IMPACT MEDIUM - new with self-hosting; Telegram never had this
+  FIX    A free uptime monitor pinging /health, alerting you. Docker restart
+         policy. Nightly SQLite backup off the box.
+
+  RISK   Received photos lack full-body coverage
+  IMPACT MEDIUM - limits full-scene styles and weakens the proportion
+         baseline that catches slimming
+  FIX    Assessed day 1, reported immediately. One targeted ask if short.
+
+  RISK   ARM wheel availability for a CV dependency
+  IMPACT MEDIUM
+  FIX    Mitigated by the no-PyTorch constraint. Verify day 0.
+
+  RISK   Consent and sensitive content
+  IMPACT HIGH - legal
+  FIX    Consent record from day 1, invisible watermark on outputs, source
+         material deleted when the POC closes as promised. Lingerie deferred
+         until the consent procedure is reviewed - already agreed.
+         Note: a public URL raises the stakes over a private chat. Auth on
+         every image route, unguessable filenames, no directory listing.
+
+  RISK   Provider price change or deprecation
+  IMPACT LOW
+  FIX    ProviderDescriptor holds pricing; the ledger reads from it. A price
+         update is a config change, not a code change.
+
+
+------------------------------------------------------------------------------------
+ 11. IF SHE ADDS PHOTOS LATER - SHORT NOTE, NOT A COURSE
+------------------------------------------------------------------------------------
+
+  ---------------------------------------------------------------------------
+  Nayane, si algun dia quieres anadir fotos nuevas a tu perfil, entra en la
+  app, ve a Ajustes y pulsa "Anadir fotos al perfil". Se abre la galeria del
+  movil y eliges las que quieras. Ya esta - no hay que hacer nada mas.
+
+  Solo dos cosas al hacerlas:
+  1. Camara TRASERA, no la frontal. Movil apoyado y temporizador.
+  2. Sin filtros y sin embellecedor. Si el movil lo trae activado,
+     desactivalo antes.
+
+  Lo mas util son fotos de CUERPO ENTERO, de la cabeza a los pies, a 2 o 3
+  metros. Son las que menos gente hace y las que mas ayudan.
+
+  Yo reviso cada una y te aviso si alguna no sirve.
+  ---------------------------------------------------------------------------
+
+
+------------------------------------------------------------------------------------
+ 12. DEFINITION OF DONE
+------------------------------------------------------------------------------------
+
+The POC is complete when, from her phone, with no technical assistance:
+
+  [ ] The app opens from an icon on her home screen, no link, no password
+  [ ] One button opens her camera roll; the photo uploads at full quality
+      with no instruction about file types
+  [ ] Relevant style options appear within ~5 seconds
+  [ ] She selects SEVERAL options in one row - two garments, two gestures -
+      and the six previews cover exactly those combinations
+  [ ] She fixes a single expression and all six honour it
+  [ ] She leaves a row untouched and the robot varies it sensibly
+  [ ] Previews appear one by one, first within ~12 s, all within ~25 s
+  [ ] She taps the keepers and receives them finished within ~60 s
+  [ ] Photo to finished set is under two minutes
+  [ ] What she picked is what she received - preview fidelity holds
+  [ ] [ Otras 6 ] continues the combination walk instead of repeating it
+  [ ] She uploaded a photo of a dress and received that dress on herself,
+      with no explanation of what she was doing
+  [ ] She has never typed a prompt, a password or a file name
+  [ ] She has never seen a model name, a parameter or a seed
+  [ ] She has never seen a defective final
+  [ ] At least one final was silently repaired by region inpainting, logged
+      and invisible to her
+  [ ] The gallery loads quickly on mobile data and downloads originals
+  [ ] Every session reports count, time and actual cost
+  [ ] Her choices measurably changed the next session, and the log shows it
+  [ ] Spending caps refused an over-budget session instead of running it
+  [ ] Fixed infrastructure cost for the month is $0.00
+  [ ] A provider was swapped by editing configuration, demonstrated live
+
+If the robot does not beat her manual results in a given category, that is
+reported as a finding, not hidden. Better found in a ten-day POC than after
+the full platform is built.
+
+
+====================================================================================
+ SUMMARY
+
+ SURFACE     A mobile website (PWA) on her home screen. No app store, no
+             install, no account, no password. One private link, once.
+ FLOW        Upload a photo -> options appear for THAT photo -> mark what she
+             wants (several per row: ropa, pelo, gesto, expresion, escenario,
+             luz, encuadre) -> six results appear one by one -> tap the
+             keepers -> finished. Under two minutes. Nothing typed.
+ SELECTION   None selected = robot varies it. One = fixed in all six.
+             Several = varies across exactly those. One rule everywhere.
+ KEY IDEA    Two-stage generation. Cheap previews she chooses from, then full
+             quality only on her choices. Faster, cheaper, and she decides.
+ WEB WINS    The "send as file, not as photo" problem disappears entirely.
+             Progressive results, real comparison view, real gallery, her
+             own address. The phase-2 product, built early.
+ WEB COSTS   +2 to +3 days. Paid for by moving wardrobe, voice and standing
+             orders to phase 2. Say so in writing before starting.
+ STACK       FastAPI + Jinja2 + Alpine.js + Tailwind + SSE + service worker
+             Caddy for automatic HTTPS - SQLite - ONNX CV, no PyTorch
+             Claude Opus 5 (analysis, compiler) + Claude Haiku 4.5 (judge)
+             Two provider tiers behind capability-based adapters
+ HOSTING     Oracle Cloud Always Free ARM, Docker, automatic TLS
+ UPFRONT     $0
+ FIXED       $0 / month   (optional domain ~$10-12/year)
+ VARIABLE    ~$0.07 per delivered photo
+ HER TIME    under 2 minutes per session
+ TIMELINE    9-10 working days to a demonstrable POC
+====================================================================================

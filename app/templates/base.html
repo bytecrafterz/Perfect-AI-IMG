@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<!-- viewport-fit=cover + the safe-area insets in app.css keep the bottom bar
+     clear of the iPhone home indicator once she installs to the home screen -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111113">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Estudio">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
+<link rel="stylesheet" href="/static/app.css">
+<title>{% block title %}Estudio{% endblock %}</title>
+</head>
+<body>
+
+<main class="screen">
+  {% block content %}{% endblock %}
+</main>
+
+{% if tab %}
+<nav class="tabs">
+  <a href="/" class="tab {% if tab == 'crear' %}on{% endif %}">
+    <span class="tab-i">＋</span><span>Crear</span>
+  </a>
+  <a href="/galeria" class="tab {% if tab == 'galeria' %}on{% endif %}">
+    <span class="tab-i">▦</span><span>Galería</span>
+  </a>
+  <a href="/galeria?kept=1" class="tab {% if tab == 'favoritos' %}on{% endif %}">
+    <span class="tab-i">★</span><span>Favoritos</span>
+  </a>
+  <a href="/ajustes" class="tab {% if tab == 'ajustes' %}on{% endif %}">
+    <span class="tab-i">⚙</span><span>Ajustes</span>
+  </a>
+</nav>
+{% endif %}
+
+<script>
+// Register the service worker so the app can be installed to the home screen.
+// On iPhone that install is not cosmetic: web push only works once the app is
+// on the home screen, which is why the install prompt is handled properly
+// rather than left to chance.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+</script>
+{% block script %}{% endblock %}
+</body>
+</html>

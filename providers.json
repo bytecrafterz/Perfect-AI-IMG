@@ -1,0 +1,84 @@
+{
+  "_comment": [
+    "Which providers exist, what they can do, and what they cost.",
+    "",
+    "This file is the reason 'no quiero quedar atada a una unica API' is a",
+    "promise the code can keep: adding a provider is an entry here, swapping",
+    "one is editing 'enabled', and a price change is a config edit rather",
+    "than a code change. Nothing upstream of app/providers/ ever names one.",
+    "",
+    "An entry whose api_key_env is unset is skipped silently at startup, so",
+    "this file can list everything and the machine runs whatever it has keys",
+    "for. With no keys at all, the local mock is used and says so.",
+    "",
+    "PRICES MOVE. Verify before quoting her a figure - the cost line she sees",
+    "on every delivery is computed from these numbers.",
+    "",
+    "The two tiers are the two-stage design: a cheap fast model she chooses",
+    "from, then a quality model only on what she chose."
+  ],
+
+  "providers": [
+    {
+      "adapter": "fal",
+      "id": "fal.flux-schnell",
+      "model": "fal-ai/flux/schnell",
+      "api_key_env": "FAL_API_KEY",
+      "tiers": ["preview"],
+      "capabilities": ["t2i", "i2i"],
+      "cost_per_call_usd": 0.003,
+      "p50_latency_s": 2.0,
+      "max_resolution": [1024, 1024],
+      "prompt_dialect": "natural_verbose",
+      "params": { "num_inference_steps": 4 },
+      "enabled": true,
+      "notes": "Preview tier. Four steps, cheap and fast - it exists to give her something real to choose between, not to be the final photograph."
+    },
+    {
+      "adapter": "fal",
+      "id": "fal.flux-kontext",
+      "model": "fal-ai/flux-pro/kontext",
+      "inpaint_model": "fal-ai/flux-pro/v1/fill",
+      "api_key_env": "FAL_API_KEY",
+      "tiers": ["final"],
+      "capabilities": ["t2i", "i2i", "inpaint", "identity_reference"],
+      "cost_per_call_usd": 0.04,
+      "p50_latency_s": 9.0,
+      "max_resolution": [1536, 1536],
+      "prompt_dialect": "instructional",
+      "params": {},
+      "enabled": true,
+      "notes": "Final tier. An edit model: it transforms her actual photo rather than inventing a body, which is where her real proportions come from. Hence the instructional dialect - 'change X, keep Y'."
+    },
+    {
+      "adapter": "replicate",
+      "id": "replicate.flux-schnell",
+      "model": "black-forest-labs/flux-schnell",
+      "api_key_env": "REPLICATE_API_TOKEN",
+      "tiers": ["preview"],
+      "capabilities": ["t2i", "i2i"],
+      "cost_per_call_usd": 0.003,
+      "p50_latency_s": 3.0,
+      "max_resolution": [1024, 1024],
+      "prompt_dialect": "natural_verbose",
+      "params": { "num_inference_steps": 4, "output_format": "png" },
+      "enabled": true,
+      "notes": "Second provider, same tier. Exists so the swap can be demonstrated live rather than merely claimed."
+    },
+    {
+      "adapter": "replicate",
+      "id": "replicate.flux-dev",
+      "model": "black-forest-labs/flux-dev",
+      "api_key_env": "REPLICATE_API_TOKEN",
+      "tiers": ["final"],
+      "capabilities": ["t2i", "i2i"],
+      "cost_per_call_usd": 0.025,
+      "p50_latency_s": 12.0,
+      "max_resolution": [1440, 1440],
+      "prompt_dialect": "natural_verbose",
+      "params": { "output_format": "png", "num_inference_steps": 28 },
+      "enabled": true,
+      "notes": "Final tier fallback. Pin a version once a look depends on it - a model that changes under her is a quality regression nobody ordered."
+    }
+  ]
+}

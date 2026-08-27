@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Opciones{% endblock %}
+
+{% block content %}
+<h1>Elige las que te gusten</h1>
+<p class="muted" id="progress">Preparando opciones…</p>
+
+<div class="grid" id="grid">
+  {% for i in range(expected) %}
+    <div class="cell pending" data-slot="{{ i }}"></div>
+  {% endfor %}
+</div>
+
+<div id="notices"></div>
+
+<div class="bar">
+  <div class="bar-inner">
+    <div class="counter" id="counter">Ninguna seleccionada</div>
+    <button class="go" id="go" disabled>Crear en alta calidad</button>
+    <button class="go secondary" id="more">Otras 6 opciones</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+const SESSION = "{{ session_id }}";
+const grid = document.getElementById('grid');
+const chosen = new Set();
+let landed = 0;
+
+// Each preview is pushed the moment it lands rather than the set arriving
+// whole. The same wait reads as roughly half as long, and she can start
+// choosing before the grid is even full.
+const stream = new EventSource(`/events/${SESSION}`);
+
+stream.addEventListener('preview_ready', (event) => {
+  const data = JSON.parse(event.data);
+  const cell = grid.querySelector(`[data-slot="${data.position}"]`) ||
+               grid.querySelector('.pending');
+  if (!cell) return;
+
+  cell.classList.remove('pending');
+  cell.dataset.id = data.id;
+  cell.innerHTML =
+    `<img src="${data.url}" alt="" loading="lazy">` +
+    `<div class="num">${++landed}</div>`;
+  cell.addEventListener('click', () => toggle(cell, data.id));
+  document.getElementById('progress').textContent = `${landed} listas…`;
+});
+
+stream.addEventListener('previews_done', (event) => {
+  const data = JSON.parse(event.data);
+  document.getElementById('progress').textContent =
+    `${data.delivered} opciones · $${(data.cost ?? 0).toFixed(3)}`;
+  // Any slot that never filled is removed rather than left shimmering
+  // forever, which would read as a hang.
+  grid.querySelectorAll('.pending').forEach(cell => cell.remove());
+});
+
+stream.addEventListener('error_event', () => {});
+stream.addEventListener('error', (event) => {
+  try {
+    const data = JSON.parse(event.data || '{}');
+    if (data.detail) notice(data.detail);
+  } catch (_) { /* transport-level error, not a message */ }
+});
+
+function notice(text) {
+  document.getElementById('notices').innerHTML =
+    `<div class="notice bad">${text}</div>`;
+}
+
+function toggle(cell, id) {
+  if (chosen.has(id)) { chosen.delete(id); cell.classList.remove('on'); }
+  else { chosen.add(id); cell.classList.add('on'); }
+
+  const count = chosen.size;
+  const counter = document.getElementById('counter');
+  counter.innerHTML = count
+    ? `<strong>${count}</strong> seleccionada${count === 1 ? '' : 's'}`
+    : 'Ninguna seleccionada';
+  document.getElementById('go').disabled = count === 0;
+}
+
+document.getElementById('go').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  button.textContent = 'Terminando…';
+
+  const body = new FormData();
+  body.append('session_id', SESSION);
+  body.append('chosen', JSON.stringify([...chosen]));
+
+  await fetch('/finals', { method: 'POST', body });
+  location.href = `/resultado/${SESSION}`;
+});
+
+// [ Otras 6 ] CONTINUES the walk through her selection rather than repeating
+// the six she has already rejected.
+document.getElementById('more').addEventListener('click', () => {
+  location.href = `/opciones/${SESSION}?more=1`;
+});
+</script>
+{% endblock %}

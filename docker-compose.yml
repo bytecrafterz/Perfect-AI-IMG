@@ -1,0 +1,56 @@
+# Two containers, no external services.
+#
+# Everything else the app needs - database, queue, scheduler, image storage -
+# lives inside the app container or on a volume, which is what keeps the fixed
+# monthly cost at zero and makes relocating to another machine a five-minute
+# operation rather than a migration.
+
+services:
+  app:
+    build:
+      context: .
+      target: runtime
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /srv/data
+      CATALOG_DIR: /srv/catalog
+    volumes:
+      # The only stateful thing in the system.  Backing up Estudio is copying
+      # this directory; the SQLite database is one file inside it.
+      - ./data:/srv/data
+      # Mounted rather than baked in, so a look can be added or edited without
+      # a rebuild.  The catalog is data, not code.
+      - ./catalog:/srv/catalog
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # The address she opens. A free subdomain works; a real domain costs
+      # ~$10-12/year and is the only optional expense in the project.
+      DOMAIN: ${DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates and account keys. Losing this volume means re-issuing
+      # from Let's Encrypt, which is rate limited - so it is named, not bind
+      # mounted into a directory someone might tidy up.
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  caddy_data:
+  caddy_config:

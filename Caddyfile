@@ -1,0 +1,47 @@
+# Caddy: TLS in one line, renewed automatically.
+#
+# This is why the address costs nothing to secure. No certbot, no cron job to
+# renew, no expiry to forget - Caddy obtains and renews from Let's Encrypt on
+# its own. On localhost it issues an internal certificate instead, so the dev
+# setup matches production rather than being a special case.
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# X-Forwarded-Proto is what tells the app the browser reached us over TLS,
+	# which decides whether the session cookie is marked Secure. Caddy sets it
+	# automatically; uvicorn is started with --proxy-headers to trust it.
+	reverse_proxy app:8000 {
+		# Generation is a long request. The default read timeout would cut an
+		# SSE stream mid-batch and the grid would appear to freeze.
+		flush_interval -1
+		transport http {
+			read_timeout 300s
+		}
+	}
+
+	# Photographs of a real person. Do not let them be framed, sniffed, or
+	# leak a referrer to wherever she shares a link.
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy no-referrer
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	# Uploads from a phone camera are large; the app enforces its own limit
+	# and returns a readable message, so this only stops the absurd.
+	request_body {
+		max_size 40MB
+	}
+
+	log {
+		output file /data/access.log {
+			roll_size 10MB
+			roll_keep 3
+		}
+		# The URL of an image is not something to write to disk in bulk.
+		format json
+	}
+}

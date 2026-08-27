@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Entrar{% endblock %}
+
+{% block content %}
+<h1>{{ app_name }}</h1>
+{# No password field on purpose. She was sent one private link; opening it is
+   the whole login. Asking her to invent and remember a password would be the
+   single most likely reason she never comes back. #}
+<div class="notice">
+  <strong>Necesitas tu enlace privado.</strong>
+  Es el que te envié por mensaje. Ábrelo una vez desde el móvil y ya no
+  tendrás que volver a hacerlo.
+</div>
+<p class="muted">
+  Si lo has perdido, escríbeme y te mando otro. No hay contraseña que recordar.
+</p>
+{% endblock %}

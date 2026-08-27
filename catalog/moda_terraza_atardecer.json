@@ -1,0 +1,112 @@
+{
+  "version": "1.0",
+  "id": "moda_terraza_atardecer",
+  "name": "Terraza al atardecer",
+  "category": "moda",
+  "cover_image": "covers/moda_terraza_atardecer.webp",
+  "recipe": {
+    "garment": {
+      "type": "vestido largo",
+      "fabric": "satinado con caida fluida",
+      "colors": [
+        "negro",
+        "verde oscuro",
+        "burdeos"
+      ],
+      "details": "tirantes finos, espalda descubierta"
+    },
+    "scene": {
+      "place": "terraza urbana con suelo de madera y barandilla de hierro",
+      "time": "hora dorada, veinte minutos antes de la puesta de sol",
+      "depth": "skyline de la ciudad desenfocado al fondo, luces empezando a encenderse"
+    },
+    "lighting": {
+      "key": "sol bajo lateral que entra por la izquierda",
+      "fill": "rebote calido del suelo de madera",
+      "mood": "calido, contraste suave"
+    },
+    "camera": {
+      "focal_mm": 85,
+      "aperture": "f/2.0",
+      "height": "pecho",
+      "framing": "medio"
+    },
+    "pose_family": [
+      "de pie apoyada en la barandilla",
+      "caminando hacia camara",
+      "girando el cuerpo"
+    ]
+  },
+  "applies_to": {
+    "framing": [
+      "medio",
+      "cuerpo entero"
+    ],
+    "needs_body": true,
+    "replaces_background": true,
+    "min_source_quality": 0.45
+  },
+  "variation_axes": [
+    "gesture",
+    "expression",
+    "garment_color",
+    "camera_angle"
+  ],
+  "locks": [
+    "face",
+    "body_proportions",
+    "skin_tone",
+    "hair"
+  ],
+  "selectable": [
+    "garment",
+    "garment_color",
+    "gesture",
+    "expression",
+    "framing"
+  ],
+  "chips": {
+    "garment": [
+      "vestido largo",
+      "vestido midi",
+      "traje sastre",
+      "top y pantalon"
+    ],
+    "garment_color": [
+      "negro",
+      "burdeos",
+      "verde oscuro",
+      "crema"
+    ],
+    "gesture": [
+      "apoyada en la barandilla",
+      "caminando",
+      "girando",
+      "de pie",
+      "mano en el pelo"
+    ],
+    "expression": [
+      "neutra",
+      "sonrisa suave",
+      "seria",
+      "mirada baja"
+    ],
+    "framing": [
+      "como esta",
+      "medio",
+      "cuerpo entero"
+    ]
+  },
+  "chip_stats": {},
+  "route_hint": "in_place_edit",
+  "learned_params": {},
+  "stats": {
+    "first_try_rate": null,
+    "avg_cost_usd": null,
+    "keep_rate": null,
+    "sessions": 0,
+    "last_shown_at": null
+  },
+  "enabled": true,
+  "_note": "Este look se autoriza tal cual. Mientras COVERAGE_POLICY=full el compilador neutraliza la exposicion; al desactivarla se renderiza como esta escrito."
+}

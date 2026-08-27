@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Ajustes{% endblock %}
+
+{% block content %}
+<h1>Ajustes</h1>
+
+<h2>Gasto</h2>
+<div class="stat"><span>Hoy</span><span>${{ '%.2f' | format(spend.today) }}</span></div>
+<div class="stat"><span>Esta semana</span><span>${{ '%.2f' | format(spend.week) }}</span></div>
+<div class="stat"><span>Este mes</span><span>${{ '%.2f' | format(spend.month) }}</span></div>
+<div class="stat"><span>Total</span><span>${{ '%.2f' | format(spend.all) }}</span></div>
+
+<h2>Límites</h2>
+{# Caps refuse rather than overspend. They are mandatory because the system
+   spends money while she is not watching. #}
+<div class="stat"><span>Por sesión</span><span>${{ '%.2f' | format(caps.per_session_usd) }}</span></div>
+<div class="stat"><span>Por día</span><span>${{ '%.2f' | format(caps.per_day_usd) }}</span></div>
+<div class="notice">
+  Si una sesión fuera a superar el límite, no empieza. Prefiero avisarte antes
+  que gastarte el saldo a medias.
+</div>
+
+<h2>Calidad y coste</h2>
+<div class="row">
+  <div class="chips">
+    <button class="chip {% if preview_count == 4 %}on{% endif %}" data-count="4">Económico · 4 opciones</button>
+    <button class="chip {% if preview_count == 6 %}on{% endif %}" data-count="6">Equilibrado · 6 opciones</button>
+    <button class="chip {% if preview_count == 9 %}on{% endif %}" data-count="9">Máxima calidad · 9 opciones</button>
+  </div>
+</div>
+
+<h2>Estado del sistema</h2>
+<div class="stat"><span>Estilos en el catálogo</span><span>{{ catalog_size }}</span></div>
+
+{% if warnings %}
+  <div class="notice bad">
+    <strong>Cosas que revisar</strong>
+    <ul style="margin:8px 0 0 16px; padding:0;">
+      {% for warning in warnings %}<li>{{ warning }}</li>{% endfor %}
+    </ul>
+  </div>
+{% else %}
+  <div class="notice"><strong>Todo correcto.</strong> Nada que revisar.</div>
+{% endif %}
+
+<h2>Notificaciones</h2>
+<div class="notice">
+  Para recibir un aviso cuando las fotos estén listas, esta app tiene que estar
+  en la pantalla de inicio del móvil. Si no la tienes, pulsa el botón de
+  compartir del navegador y luego «Añadir a pantalla de inicio».
+</div>
+<button class="go secondary" id="notify">Activar avisos</button>
+{% endblock %}
+
+{% block script %}
+<script>
+document.querySelectorAll('[data-count]').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('[data-count]').forEach(c => c.classList.remove('on'));
+    chip.classList.add('on');
+    localStorage.setItem('preview_count', chip.dataset.count);
+  });
+});
+
+// Permission is requested only here, on a deliberate tap - never on first
+// load, when she has no idea yet what the app is for and the value of saying
+// yes is not obvious.
+document.getElementById('notify').addEventListener('click', async () => {
+  if (!('Notification' in window)) {
+    alert('Este navegador no admite avisos.');
+    return;
+  }
+  const permission = await Notification.requestPermission();
+  alert(permission === 'granted'
+    ? 'Listo. Te aviso cuando terminen tus fotos.'
+    : 'Sin avisos. Las fotos te esperan igual en la galería.');
+});
+</script>
+{% endblock %}

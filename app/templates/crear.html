@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Crear{% endblock %}
+
+{% block content %}
+<h1>Hola {{ owner }}</h1>
+<p class="muted">Sube una foto y te preparo opciones.</p>
+
+{% if warnings %}
+  {# A half-configured system announces itself rather than quietly producing
+     worse work. She should never be the one to discover it. #}
+  <div class="notice bad">
+    <strong>Aviso técnico</strong>
+    <ul style="margin:8px 0 0 16px; padding:0;">
+      {% for warning in warnings %}<li>{{ warning }}</li>{% endfor %}
+    </ul>
+  </div>
+{% endif %}
+
+<!-- One button. Her camera roll opens; no instruction about file types,
+     because the web upload always sends the original. -->
+<button class="upload" id="pick">
+  <span class="glyph">＋</span>
+  <span>Subir una foto</span>
+  <span class="hint">se abre tu galería</span>
+</button>
+<input type="file" id="file" accept="image/*">
+
+<div id="status"></div>
+
+{% if recent %}
+  <h2>Últimas fotos</h2>
+  <div class="grid">
+    {% for image in recent %}
+      <a class="cell" href="/galeria">
+        <img src="/media/thumb/{{ image.stem }}.webp" alt="" loading="lazy">
+      </a>
+    {% endfor %}
+  </div>
+{% endif %}
+{% endblock %}
+
+{% block script %}
+<script>
+const pick = document.getElementById('pick');
+const file = document.getElementById('file');
+const status = document.getElementById('status');
+
+pick.addEventListener('click', () => file.click());
+
+file.addEventListener('change', async () => {
+  if (!file.files.length) return;
+  status.innerHTML = '<div class="notice">Subiendo…</div>';
+  pick.disabled = true;
+
+  const body = new FormData();
+  body.append('photo', file.files[0]);
+
+  try {
+    const response = await fetch('/upload', { method: 'POST', body });
+    const data = await response.json();
+
+    if (!response.ok) {
+      status.innerHTML = `<div class="notice bad">${data.error || 'No he podido subir la foto.'}</div>`;
+      pick.disabled = false;
+      return;
+    }
+
+    // Same gesture, two meanings. If she is not in the photo it is a
+    // reference - a dress, a hairstyle - and the robot asks what to take
+    // from it rather than guessing.
+    if (data.role === 'reference') {
+      status.innerHTML = `
+        <div class="notice">
+          <strong>No sales tú en esta foto.</strong> ¿Qué quieres de ella?
+        </div>
+        <div class="chips">
+          ${data.targets.map(t => `<button class="chip" data-take="${t.key}">${t.label}</button>`).join('')}
+        </div>`;
+      status.querySelectorAll('[data-take]').forEach(button => {
+        button.addEventListener('click', () => {
+          sessionStorage.setItem('reference', JSON.stringify({
+            image_id: data.image_id, take: button.dataset.take
+          }));
+          status.innerHTML = '<div class="notice">Guardado. Ahora sube una foto tuya y lo aplico.</div>';
+          pick.disabled = false;
+        });
+      });
+      return;
+    }
+
+    location.href = data.next;
+  } catch (error) {
+    status.innerHTML = '<div class="notice bad">Se ha cortado la conexión. Inténtalo otra vez.</div>';
+    pick.disabled = false;
+  }
+});
+</script>
+{% endblock %}
