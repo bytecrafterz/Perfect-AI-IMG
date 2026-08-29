@@ -12,6 +12,7 @@ over queries that fit on one line.
 from __future__ import annotations
 
 import json
+import math
 import sqlite3
 import time
 from contextlib import contextmanager
@@ -30,11 +31,23 @@ CREATE TABLE IF NOT EXISTS images (
     score        REAL,
     kept         INTEGER NOT NULL DEFAULT 0,
     report       TEXT,
-    created_at   REAL NOT NULL
+    created_at   REAL NOT NULL,
+    -- Soft delete. NULL means live; a timestamp means it is in the bin and
+    -- will be destroyed for real once the retention window passes.
+    --
+    -- Nothing is ever deleted outright on her say-so. She is working on a
+    -- phone, the delete control sits next to the image, and a mis-tap that
+    -- permanently destroys a photograph she liked is not a mistake this
+    -- system should be capable of making.
+    deleted_at   REAL
 );
 CREATE INDEX IF NOT EXISTS images_session ON images(session_id);
 CREATE INDEX IF NOT EXISTS images_kind_created ON images(kind, created_at DESC);
 CREATE INDEX IF NOT EXISTS images_kept ON images(kept, created_at DESC);
+-- NOTE: the index on deleted_at is created in _migrate(), not here.
+-- CREATE TABLE IF NOT EXISTS is a no-op against an existing table, so on a
+-- database made before that column existed this script would try to index a
+-- column that is not there yet and fail before the migration could add it.
 
 CREATE TABLE IF NOT EXISTS sessions (
     id           TEXT PRIMARY KEY,
@@ -100,6 +113,7 @@ class ImageRow:
     score: float | None
     kept: bool
     created_at: float
+    deleted_at: float | None = None
 
     @property
     def name(self) -> str:
@@ -108,6 +122,33 @@ class ImageRow:
     @property
     def stem(self) -> str:
         return Path(self.path).stem
+
+    @property
+    def in_bin(self) -> bool:
+        return self.deleted_at is not None
+
+    def days_left(self, retention_days: float) -> float:
+        """How long before this is destroyed for good."""
+        if self.deleted_at is None:
+            return retention_days
+        elapsed = (time.time() - self.deleted_at) / 86_400
+        return max(0.0, retention_days - elapsed)
+
+    def expiry_es(self, retention_days: float) -> str:
+        """Plain words, because "expires in 0.3 days" helps nobody decide
+        whether to act now."""
+        days = self.days_left(retention_days)
+        if days <= 0:
+            return "se borra en cualquier momento"
+        if days < 1:
+            hours = max(1, math.ceil(days * 24))
+            return f"quedan {hours} hora{'s' if hours != 1 else ''}"
+        # CEIL, not int(). Truncating tells someone with 1.99 days left that
+        # they have 1, and tells someone who deleted a photo ten seconds ago
+        # that they have 6 of their 7 days. Both under-report, consistently,
+        # for the entire life of every item in the bin.
+        whole = math.ceil(days)
+        return f"quedan {whole} dia{'s' if whole != 1 else ''}"
 
 
 class Store:
@@ -120,6 +161,22 @@ class Store:
             # finishing).  On one box with one user this is the difference
             # between "instant" and "occasionally stuck".
             db.execute("PRAGMA journal_mode=WAL")
+            self._migrate(db)
+
+    def _migrate(self, db: sqlite3.Connection) -> None:
+        """Bring an existing database up to the current schema.
+
+        CREATE TABLE IF NOT EXISTS does nothing to a table that already
+        exists, so a column added later never appears on a database created
+        before it. Deployed installs already hold her photographs; dropping
+        and recreating is not an option.
+        """
+        existing = {row["name"] for row in db.execute("PRAGMA table_info(images)")}
+        if "deleted_at" not in existing:
+            db.execute("ALTER TABLE images ADD COLUMN deleted_at REAL")
+        # Created here rather than in SCHEMA, and unconditionally, so it exists
+        # on both a fresh database and a migrated one.
+        db.execute("CREATE INDEX IF NOT EXISTS images_deleted ON images(deleted_at)")
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:
@@ -168,7 +225,9 @@ class Store:
             )
 
     def gallery(self, *, limit: int = 60, kind: str = "final", kept_only: bool = False) -> list[ImageRow]:
-        query = "SELECT * FROM images WHERE kind=?"
+        # deleted_at IS NULL everywhere a live image is listed. A binned photo
+        # that still shows up in the gallery would make "delete" a lie.
+        query = "SELECT * FROM images WHERE kind=? AND deleted_at IS NULL"
         params: list[object] = [kind]
         if kept_only:
             query += " AND kept=1"
@@ -176,6 +235,76 @@ class Store:
         params.append(limit)
         with self.connect() as db:
             return [_row_to_image(r) for r in db.execute(query, params)]
+
+    # -- bin ---------------------------------------------------------------
+
+    def move_to_bin(self, image_ids: list[str]) -> int:
+        """Soft delete. Reversible for the retention window."""
+        if not image_ids:
+            return 0
+        now = time.time()
+        with self.connect() as db:
+            cur = db.executemany(
+                "UPDATE images SET deleted_at=? WHERE id=? AND deleted_at IS NULL",
+                [(now, i) for i in image_ids],
+            )
+            return cur.rowcount if cur.rowcount and cur.rowcount > 0 else len(image_ids)
+
+    def restore(self, image_ids: list[str]) -> int:
+        """Bring images back out of the bin.
+
+        Only touches rows still IN the bin: restoring something already purged
+        is impossible, and this makes that explicit rather than silently
+        resurrecting a row whose file is gone.
+        """
+        if not image_ids:
+            return 0
+        with self.connect() as db:
+            cur = db.executemany(
+                "UPDATE images SET deleted_at=NULL WHERE id=? AND deleted_at IS NOT NULL",
+                [(i,) for i in image_ids],
+            )
+            return cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
+
+    def bin_contents(self, *, limit: int = 200) -> list[ImageRow]:
+        """Newest first, so what she just deleted is what she sees."""
+        with self.connect() as db:
+            rows = db.execute(
+                "SELECT * FROM images WHERE deleted_at IS NOT NULL"
+                " ORDER BY deleted_at DESC LIMIT ?",
+                (limit,),
+            )
+            return [_row_to_image(r) for r in rows]
+
+    def expired(self, *, retention_days: float) -> list[ImageRow]:
+        """Everything past the retention window - the purge candidates.
+
+        Returned rather than deleted so the caller can remove the FILES first
+        and only then the rows. Deleting rows first would orphan the files
+        with nothing left pointing at them.
+        """
+        cutoff = time.time() - retention_days * 86_400
+        with self.connect() as db:
+            rows = db.execute(
+                "SELECT * FROM images WHERE deleted_at IS NOT NULL AND deleted_at < ?",
+                (cutoff,),
+            )
+            return [_row_to_image(r) for r in rows]
+
+    def forget(self, image_ids: list[str]) -> int:
+        """Remove the rows. Call only after the files are gone."""
+        if not image_ids:
+            return 0
+        with self.connect() as db:
+            db.executemany("DELETE FROM images WHERE id=?", [(i,) for i in image_ids])
+        return len(image_ids)
+
+    def bin_count(self) -> int:
+        with self.connect() as db:
+            row = db.execute(
+                "SELECT COUNT(*) AS n FROM images WHERE deleted_at IS NOT NULL"
+            ).fetchone()
+        return int(row["n"])
 
     def recent_sessions(self, limit: int = 8) -> list[sqlite3.Row]:
         with self.connect() as db:
@@ -308,6 +437,7 @@ class Store:
 
 
 def _row_to_image(row: sqlite3.Row) -> ImageRow:
+    keys = row.keys()
     return ImageRow(
         id=row["id"],
         kind=row["kind"],
@@ -318,4 +448,7 @@ def _row_to_image(row: sqlite3.Row) -> ImageRow:
         score=row["score"],
         kept=bool(row["kept"]),
         created_at=row["created_at"],
+        # Tolerated as absent so a row read before the migration ran does not
+        # raise; it simply reads as live.
+        deleted_at=row["deleted_at"] if "deleted_at" in keys else None,
     )

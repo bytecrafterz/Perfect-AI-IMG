@@ -373,7 +373,17 @@ class PoseBackend:
         caps = detect_capabilities(self._models_dir)
         if not caps.proportions_available:
             raise ModelUnavailable("onnxruntime or the pose model is not installed")
-        import onnxruntime as ort  # type: ignore[import-not-found]
+
+        # Guarded even though the capability check just passed. That check is
+        # cached for the process lifetime, so it can be stale - a package
+        # removed, an environment swapped, a partially-installed wheel. An
+        # unguarded import would then raise ModuleNotFoundError, which the
+        # gate does not catch, and the whole batch dies instead of reporting
+        # that one measurement is unavailable.
+        try:
+            import onnxruntime as ort  # type: ignore[import-not-found]
+        except Exception as exc:  # noqa: BLE001
+            raise ModelUnavailable(f"onnxruntime could not be imported: {exc}") from exc
 
         options = ort.SessionOptions()
         # One thread per core would fight the other candidates being gated

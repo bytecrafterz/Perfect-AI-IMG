@@ -2,23 +2,60 @@
 {% block title %}{% if kept_only %}Favoritos{% else %}Galería{% endif %}{% endblock %}
 
 {% block content %}
-<h1>{% if kept_only %}Favoritos{% else %}Galería{% endif %}</h1>
-<p class="muted">{{ images | length }} foto{{ '' if images | length == 1 else 's' }}</p>
+<h1>
+  {% if kept_only %}Favoritos
+  {% elif showing_uploads %}Mis fotos originales
+  {% else %}Galería{% endif %}
+</h1>
+<p class="muted">
+  {{ images | length }} foto{{ '' if images | length == 1 else 's' }}
+  {% if not kept_only %}
+    {% if showing_uploads %}
+      · <a href="/galeria" style="color:var(--accent)">ver las generadas</a>
+    {% else %}
+      · <a href="/galeria?tipo=upload" style="color:var(--accent)">mis originales</a>
+    {% endif %}
+  {% endif %}
+  {% if bin_count %}
+    · <a href="/papelera" style="color:var(--accent)">papelera ({{ bin_count }})</a>
+  {% endif %}
+</p>
+
+{% if showing_uploads %}
+  {# She asked to be able to delete her originals. Worth saying plainly that
+     doing so does not undo her profile - the measurements are already taken
+     and stored separately, which is the whole reason it is safe. #}
+  <div class="notice">
+    Estas son las fotos que has subido tú. Puedes borrarlas cuando quieras:
+    tu perfil ya está construido y <strong>no depende de ellas</strong>.
+  </div>
+{% endif %}
 
 {% if images %}
   {# Thumbnails, not originals. Full-resolution photographs over mobile data
      would make this screen unusable; the original is fetched only when she
      asks to download one. #}
-  <div class="grid">
+  <div class="grid" id="grid">
     {% for image in images %}
-      <div class="cell" data-full="/media/{{ image.name }}">
+      <div class="cell" data-id="{{ image.id }}" data-full="/media/{{ image.name }}">
         <img src="/media/thumb/{{ image.stem }}.webp" alt="" loading="lazy">
       </div>
     {% endfor %}
   </div>
+
+  <div id="notices"></div>
+
+  <div class="bar">
+    <div class="bar-inner">
+      <div class="counter" id="counter">Toca una foto para verla</div>
+      <button class="go secondary" id="select">Seleccionar</button>
+      <button class="go secondary" id="delete" style="display:none">Borrar</button>
+    </div>
+  </div>
 {% else %}
   <div class="notice">
     Todavía no hay nada aquí. Sube una foto desde <strong>Crear</strong>.
+    {% if bin_count %}<br><br>Tienes {{ bin_count }} en la <a href="/papelera">papelera</a>.{% endif %}
   </div>
 {% endif %}
 
@@ -33,13 +70,69 @@
 
 {% block script %}
 <script>
+// Two modes. Viewing is the default, because that is what she is here for
+// most of the time; deleting is deliberate and has to be turned on. Tapping
+// an image should never be able to destroy it by accident.
+let selecting = false;
+const chosen = new Set();
+
+const counter = document.getElementById('counter');
+const selectBtn = document.getElementById('select');
+const deleteBtn = document.getElementById('delete');
+
+function refresh() {
+  const n = chosen.size;
+  if (!selecting) { counter.textContent = 'Toca una foto para verla'; return; }
+  counter.innerHTML = n
+    ? `<strong>${n}</strong> seleccionada${n === 1 ? '' : 's'}`
+    : 'Toca las que quieras borrar';
+  deleteBtn.disabled = n === 0;
+}
+
+selectBtn?.addEventListener('click', () => {
+  selecting = !selecting;
+  selectBtn.textContent = selecting ? 'Cancelar' : 'Seleccionar';
+  deleteBtn.style.display = selecting ? '' : 'none';
+  if (!selecting) {
+    chosen.clear();
+    document.querySelectorAll('.cell.on').forEach(c => c.classList.remove('on'));
+  }
+  refresh();
+});
+
 document.querySelectorAll('.cell').forEach(cell => {
   cell.addEventListener('click', () => {
-    const url = cell.dataset.full;
-    document.getElementById('viewer-img').src = url;
-    document.getElementById('download').href = url;
-    document.getElementById('viewer').classList.add('open');
+    if (!selecting) {
+      const url = cell.dataset.full;
+      document.getElementById('viewer-img').src = url;
+      document.getElementById('download').href = url;
+      document.getElementById('viewer').classList.add('open');
+      return;
+    }
+    const id = cell.dataset.id;
+    if (chosen.has(id)) { chosen.delete(id); cell.classList.remove('on'); }
+    else { chosen.add(id); cell.classList.add('on'); }
+    refresh();
   });
 });
+
+deleteBtn?.addEventListener('click', async (e) => {
+  const button = e.currentTarget;
+  button.disabled = true;
+  button.textContent = 'Borrando…';
+
+  const body = new FormData();
+  body.append('ids', JSON.stringify([...chosen]));
+  const response = await fetch('/borrar', { method: 'POST', body });
+  const data = await response.json();
+
+  // No confirmation dialog on the way in: the bin IS the confirmation, and it
+  // is a far better one than a modal she taps through without reading.
+  document.getElementById('notices').innerHTML =
+    `<div class="notice">${data.message} <a href="/papelera" style="color:var(--accent)">Ver papelera</a></div>`;
+  setTimeout(() => location.reload(), 1400);
+});
+
+refresh();
 </script>
 {% endblock %}

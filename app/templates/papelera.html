@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Papelera{% endblock %}
+
+{% block content %}
+<h1>Papelera</h1>
+<p class="muted">
+  {{ images | length }} foto{{ '' if images | length == 1 else 's' }} ·
+  se borran solas a los {{ retention_days }} días
+</p>
+
+{% if images %}
+  {# Selection first, action second - same pattern as the preview grid, so
+     there is only one interaction to learn in the whole app. #}
+  <div class="grid" id="grid">
+    {% for image in images %}
+      <div class="cell binned" data-id="{{ image.id }}">
+        <img src="/media/thumb/{{ image.stem }}.webp" alt="" loading="lazy">
+        <div class="expiry {% if image.urgent %}urgent{% endif %}">{{ image.expiry }}</div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div id="notices"></div>
+
+  <div class="bar">
+    <div class="bar-inner">
+      <div class="counter" id="counter">Toca las que quieras recuperar</div>
+      <button class="go" id="restore" disabled>Recuperar</button>
+      <button class="go secondary" id="empty">Vaciar la papelera</button>
+    </div>
+  </div>
+{% else %}
+  <div class="notice">
+    La papelera está vacía.
+    <br><br>
+    Cuando borres una foto se queda aquí {{ retention_days }} días por si
+    cambias de idea. Después se borra sola y ya no se puede recuperar.
+  </div>
+{% endif %}
+{% endblock %}
+
+{% block script %}
+<script>
+const chosen = new Set();
+
+document.querySelectorAll('.cell').forEach(cell => {
+  cell.addEventListener('click', () => {
+    const id = cell.dataset.id;
+    if (chosen.has(id)) { chosen.delete(id); cell.classList.remove('on'); }
+    else { chosen.add(id); cell.classList.add('on'); }
+
+    const n = chosen.size;
+    document.getElementById('counter').innerHTML = n
+      ? `<strong>${n}</strong> seleccionada${n === 1 ? '' : 's'}`
+      : 'Toca las que quieras recuperar';
+    document.getElementById('restore').disabled = n === 0;
+  });
+});
+
+document.getElementById('restore')?.addEventListener('click', async (e) => {
+  const button = e.currentTarget;
+  button.disabled = true;
+  button.textContent = 'Recuperando…';
+
+  const body = new FormData();
+  body.append('ids', JSON.stringify([...chosen]));
+  const response = await fetch('/restaurar', { method: 'POST', body });
+  const data = await response.json();
+
+  document.getElementById('notices').innerHTML =
+    `<div class="notice">${data.message}</div>`;
+  setTimeout(() => location.reload(), 900);
+});
+
+// The only irreversible action in the app, so it asks twice and requires the
+// word to be typed. A confirm() alone is one careless tap.
+document.getElementById('empty')?.addEventListener('click', async () => {
+  const total = document.querySelectorAll('.cell').length;
+  if (!confirm(`Se borrarán ${total} foto${total === 1 ? '' : 's'} para siempre.\n\nEsto no se puede deshacer. ¿Continuar?`)) return;
+
+  const typed = prompt('Para confirmar, escribe:  BORRAR');
+  if (typed !== 'BORRAR') {
+    document.getElementById('notices').innerHTML =
+      '<div class="notice">Cancelado. No se ha borrado nada.</div>';
+    return;
+  }
+
+  const body = new FormData();
+  body.append('confirm', 'BORRAR');
+  const response = await fetch('/papelera/vaciar', { method: 'POST', body });
+  const data = await response.json();
+
+  document.getElementById('notices').innerHTML =
+    `<div class="notice bad">${data.message}</div>`;
+  setTimeout(() => location.reload(), 1200);
+});
+</script>
+{% endblock %}

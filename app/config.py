@@ -202,6 +202,16 @@ class Settings:
     max_repair_attempts: int = field(
         default_factory=lambda: _env_int("MAX_REPAIR_ATTEMPTS", 1)
     )
+
+    #: How long a deleted photo stays recoverable before it is destroyed.
+    #:
+    #: Seven days is chosen for a person, not for a disk: long enough to cover
+    #: "I deleted that on Friday and want it back on Monday", short enough
+    #: that deleting something actually means something. Disk is not the
+    #: constraint - the box has 150 GB free.
+    trash_retention_days: float = field(
+        default_factory=lambda: _env_float("TRASH_RETENTION_DAYS", 7.0)
+    )
     max_refill_rounds: int = field(
         default_factory=lambda: _env_int("MAX_REFILL_ROUNDS", 2)
     )

@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import json
 import time
 from pathlib import Path
@@ -46,7 +48,7 @@ from app.contracts.selections import Selections
 from app.gate.backends import FaceBackend
 from app.gate.gate import Gate
 from app.gate.judge import VisualJudge
-from app.images import UnsupportedImage, store_upload
+from app.images import UnsupportedImage, destroy, store_upload
 from app.ledger import BudgetExceeded, Ledger
 from app.orchestrator.engine import Orchestrator
 from app.orchestrator.events import EventKind, bus
@@ -169,7 +171,22 @@ async def _lifespan(_: FastAPI):
     print(f"[estudio] catalogo: {len(services.catalog)} estilos")
     for warning in services.warnings():
         print(f"[estudio] AVISO: {warning}")
+
+    # Sweep the bin daily, and once at startup. The startup pass matters on a
+    # box where nothing keeps the app running across a reboot: without it, a
+    # machine that is off for a fortnight would keep photos she deleted three
+    # weeks ago until someone happened to leave it running past 04:00.
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(purge_expired, "cron", hour=4, minute=0, id="purge_bin")
+    scheduler.start()
+    try:
+        purge_expired()
+    except Exception as exc:  # noqa: BLE001 - a failed sweep must not block boot
+        print(f"[estudio] AVISO: no se pudo limpiar la papelera: {exc}")
+
     yield
+
+    scheduler.shutdown(wait=False)
     await services.registry.close()
 
 
@@ -523,18 +540,150 @@ async def resultado(request: Request, session_id: str) -> Response:
 
 
 @app.get("/galeria", response_class=HTMLResponse)
-async def galeria(request: Request, kept: int = 0) -> Response:
+async def galeria(request: Request, kept: int = 0, tipo: str = "final") -> Response:
     if (redirect := _guard(request)) is not None:
         return redirect
+
+    # `tipo=upload` lists the photographs SHE sent, not the ones the system
+    # made. Without it there is no screen anywhere that shows her own
+    # originals, and no way to delete them - which is precisely the thing she
+    # asked for ("que las fotos originales puedan eliminarse despues").
+    kind = "upload" if tipo == "upload" else "final"
     return templates.TemplateResponse(
         request,
         "galeria.html",
         {
-            "images": services.store.gallery(limit=90, kind="final", kept_only=bool(kept)),
+            "images": services.store.gallery(limit=90, kind=kind, kept_only=bool(kept)),
             "kept_only": bool(kept),
+            "showing_uploads": kind == "upload",
+            "bin_count": services.store.bin_count(),
             "tab": "favoritos" if kept else "galeria",
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Deleting, and undeleting
+#
+# Nothing she deletes is destroyed on the spot. She is working on a phone with
+# the delete control next to the image, and a mis-tap that permanently loses a
+# photograph is not a mistake this system should be able to make. Deleted
+# photos sit in the bin for a week and can be brought straight back.
+# ---------------------------------------------------------------------------
+
+
+@app.post("/borrar")
+async def borrar(request: Request, ids: str = Form(...)) -> Response:
+    require_session(request)
+    try:
+        image_ids = [i for i in json.loads(ids or "[]") if i]
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="seleccion no valida") from None
+
+    moved = services.store.move_to_bin(image_ids)
+    days = int(settings.trash_retention_days)
+    return JSONResponse(
+        {
+            "moved": moved,
+            "bin_count": services.store.bin_count(),
+            "message": (
+                f"{moved} foto{'s' if moved != 1 else ''} a la papelera. "
+                f"Puedes recuperarla{'s' if moved != 1 else ''} durante {days} dias."
+            ),
+        }
+    )
+
+
+@app.post("/restaurar")
+async def restaurar(request: Request, ids: str = Form(...)) -> Response:
+    require_session(request)
+    try:
+        image_ids = [i for i in json.loads(ids or "[]") if i]
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="seleccion no valida") from None
+
+    restored = services.store.restore(image_ids)
+    return JSONResponse(
+        {
+            "restored": restored,
+            "bin_count": services.store.bin_count(),
+            "message": f"{restored} foto{'s' if restored != 1 else ''} recuperada"
+            f"{'s' if restored != 1 else ''}",
+        }
+    )
+
+
+@app.get("/papelera", response_class=HTMLResponse)
+async def papelera(request: Request) -> Response:
+    if (redirect := _guard(request)) is not None:
+        return redirect
+    rows = services.store.bin_contents(limit=200)
+    days = settings.trash_retention_days
+    return templates.TemplateResponse(
+        request,
+        "papelera.html",
+        {
+            "images": [
+                {
+                    "id": r.id,
+                    "stem": r.stem,
+                    "name": r.name,
+                    "expiry": r.expiry_es(days),
+                    "urgent": r.days_left(days) < 1,
+                }
+                for r in rows
+            ],
+            "retention_days": int(days),
+            "tab": "galeria",
+        },
+    )
+
+
+@app.post("/papelera/vaciar")
+async def vaciar_papelera(request: Request, confirm: str = Form("")) -> Response:
+    """Destroy everything in the bin now, without waiting out the week.
+
+    Guarded by an explicit confirmation string rather than a boolean: this is
+    the one irreversible action in the product, and it should not be reachable
+    by a stray POST.
+    """
+    require_session(request)
+    if confirm != "BORRAR":
+        raise HTTPException(status_code=400, detail="confirmacion requerida")
+
+    rows = services.store.bin_contents(limit=10_000)
+    purged = _purge(rows)
+    return JSONResponse(
+        {
+            "purged": purged,
+            "message": f"{purged} foto{'s' if purged != 1 else ''} borrada"
+            f"{'s' if purged != 1 else ''} definitivamente",
+        }
+    )
+
+
+def _purge(rows) -> int:
+    """Delete the FILES first, then the rows.
+
+    That order matters: rows first would orphan the files with nothing left
+    pointing at them, and they would sit on disk forever - which for
+    photographs of a real person is the opposite of what "deleted" should mean.
+    """
+    if not rows:
+        return 0
+    for row in rows:
+        destroy(row.path, settings.derivatives_dir)
+    services.store.forget([r.id for r in rows])
+    return len(rows)
+
+
+def purge_expired() -> int:
+    """The scheduled sweep. Anything past the retention window goes."""
+    rows = services.store.expired(retention_days=settings.trash_retention_days)
+    count = _purge(rows)
+    if count:
+        print(f"[estudio] papelera: {count} foto(s) borradas definitivamente")
+    return count
 
 
 @app.get("/ajustes", response_class=HTMLResponse)
@@ -580,6 +729,20 @@ async def media_medium(request: Request, name: str) -> FileResponse:
     return _serve(settings.derivatives_dir / "medium" / Path(name).name)
 
 
+def _is_binned(stem: str) -> bool:
+    """Whether this file belongs to an image she has deleted.
+
+    A binned photo must stop being servable immediately, not in a week. The
+    file still exists so it can be restored, but a URL that keeps working
+    after "delete" would make the whole feature dishonest - and these URLs get
+    shared into chats and left in browser history.
+    """
+    for row in services.store.bin_contents(limit=10_000):
+        if row.stem == stem:
+            return True
+    return False
+
+
 @app.get("/media/{name}")
 async def media(request: Request, name: str) -> FileResponse:
     """Every image route is behind auth.
@@ -590,6 +753,8 @@ async def media(request: Request, name: str) -> FileResponse:
     """
     require_session(request)
     safe = Path(name).name
+    if _is_binned(Path(safe).stem):
+        raise HTTPException(status_code=404, detail="no encontrado")
     for directory in (settings.images_dir, settings.uploads_dir):
         candidate = directory / safe
         if candidate.exists():

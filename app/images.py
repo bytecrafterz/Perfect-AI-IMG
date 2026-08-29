@@ -151,6 +151,40 @@ def build_derivatives(path: Path, derivatives: Path) -> tuple[Path, Path]:
     return thumb_path, medium_path
 
 
+def destroy(path: str | Path, derivatives: Path) -> list[str]:
+    """Delete an image and every derivative of it, permanently.
+
+    Called only by the purge, once the retention window has passed.
+
+    The derivatives matter as much as the original. A thumbnail is a small
+    picture of her, not a cache artefact - leaving `thumb/<stem>.webp` behind
+    after "permanently deleted" means the photograph is still on the disk, and
+    still servable to anyone who knows the URL.
+
+    Never raises. A purge that aborts halfway leaves half-deleted images with
+    rows already gone, which is harder to reason about than a file that failed
+    to unlink and gets retried tomorrow.
+    """
+    path = Path(path)
+    removed: list[str] = []
+
+    candidates = [
+        path,
+        derivatives / "thumb" / f"{path.stem}.webp",
+        derivatives / "medium" / f"{path.stem}.webp",
+    ]
+    for candidate in candidates:
+        try:
+            if candidate.exists():
+                candidate.unlink()
+                removed.append(str(candidate))
+        except OSError:
+            # Locked by a reader, or already gone. Either way the row stays,
+            # and the next purge picks it up.
+            continue
+    return removed
+
+
 def comparison_strip(source: Path, result: Path, output_dir: Path) -> Path:
     """Source and result side by side, as one image.
 
