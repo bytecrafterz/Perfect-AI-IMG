@@ -396,7 +396,10 @@ def test_the_free_preview_tier_is_enabled_and_costs_nothing() -> None:
     assert entry["enabled"] is True
     assert entry["cost_per_call_usd"] == 0.0
     assert "i2i" in entry["capabilities"]
-    assert entry["max_resolution"] == [512, 512]
+    # 4:5, matching PREVIEW_WIDTH x PREVIEW_HEIGHT. This asserted [512, 512]
+    # until the squashing bug was found - a square cap silently rendered every
+    # preview square, and the test agreed with it.
+    assert entry["max_resolution"] == [512, 640]
 
 
 def test_the_free_final_tier_ships_disabled() -> None:
@@ -405,3 +408,56 @@ def test_the_free_final_tier_ships_disabled() -> None:
     a default."""
     entry = next(e for e in _entries() if e["id"] == "cloudflare.flux-klein-final")
     assert entry["enabled"] is False
+
+
+def test_no_provider_squashes_the_portrait() -> None:
+    """max_resolution caps each axis INDEPENDENTLY, so a square cap turns the
+    app's 4:5 request into a square silently - no error, no warning, just
+    people rendered the wrong shape.
+
+    Checked for every provider rather than only the new one, because the trap
+    is in the shared capping logic and the next entry someone adds will meet
+    it too. A provider may legitimately cap BELOW the request; what it must
+    not do is cap the two axes to a different ratio than it was asked for.
+    """
+    from app.config import settings
+
+    wanted = [
+        ("preview", settings.preview_width, settings.preview_height),
+        ("final", settings.final_width, settings.final_height),
+    ]
+    for entry in _entries():
+        cap_w, cap_h = entry["max_resolution"]
+        for tier, want_w, want_h in wanted:
+            if tier not in entry["tiers"]:
+                continue
+            got_w, got_h = min(want_w, cap_w), min(want_h, cap_h)
+            assert got_w / got_h == pytest.approx(want_w / want_h, rel=0.02), (
+                f"{entry['id']} turns a {want_w}x{want_h} {tier} request into "
+                f"{got_w}x{got_h} - a different shape from the one asked for"
+            )
+
+
+def test_the_free_tier_covers_a_realistic_day() -> None:
+    """Cost scales with 512px TILES, not pixels, so a modest resolution bump
+    can quietly quarter the free allowance. This pins the arithmetic to the
+    resolutions actually configured.
+    """
+    from app.config import settings
+
+    NEURONS_PER_DAY, IN_TILE, OUT_TILE = 10_000, 5.37, 26.05
+
+    def cost(w: int, h: int) -> float:
+        return ((w + 511) // 512) * ((h + 511) // 512) * OUT_TILE + IN_TILE
+
+    preview = next(e for e in _entries() if e["id"] == "cloudflare.flux-klein-preview")
+    w = min(settings.preview_width, preview["max_resolution"][0])
+    h = min(settings.preview_height, preview["max_resolution"][1])
+
+    session = settings.preview_count * cost(w, h) + 3 * cost(1024, 1280)
+    sessions_per_day = NEURONS_PER_DAY / session
+
+    assert sessions_per_day >= 8, (
+        f"only {sessions_per_day:.1f} free sessions/day at the configured "
+        f"resolutions - too thin for a working client"
+    )

@@ -61,11 +61,11 @@
       "capabilities": ["t2i", "i2i"],
       "cost_per_call_usd": 0.0,
       "p50_latency_s": 3.0,
-      "max_resolution": [512, 512],
+      "max_resolution": [512, 640],
       "prompt_dialect": "instructional",
       "params": {},
       "enabled": true,
-      "notes": "FREE preview tier. Cloudflare Workers AI gives 10,000 neurons/day at no charge, reset 00:00 UTC, and hard-stops instead of billing. A 512x512 preview with one reference costs 31.4 neurons, so ~318 previews a day. Apache 2.0 model, commercial use permitted - the 4B specifically; klein-9B and flux-2-dev are NON-COMMERCIAL and must not be substituted here. cost_per_call_usd is genuinely 0, which means the bandit's value-per-euro ranking will always favour it; that is intended for the preview tier and is why it is not offered for finals."
+      "notes": "FREE preview tier. Cloudflare Workers AI gives 10,000 neurons/day at no charge, reset 00:00 UTC, and hard-stops instead of billing. max_resolution MUST match the 4:5 portrait the app requests (PREVIEW_WIDTH x PREVIEW_HEIGHT = 512x640): the adapter caps each axis independently, so a square cap silently rendered every preview square, which for photographs of a person is simply wrong. Cost scales with 512px TILES, not pixels - 512x640 is 2 tiles, so 57.5 neurons and ~174 previews a day. Apache 2.0 model, commercial use permitted - the 4B specifically; klein-9B and flux-2-dev are NON-COMMERCIAL and must not be substituted here. cost_per_call_usd is genuinely 0, which means the bandit's value-per-euro ranking will always favour it; that is intended for the preview tier and is why it is not offered for finals."
     },
     {
       "adapter": "cloudflare",
@@ -77,11 +77,11 @@
       "capabilities": ["t2i", "i2i", "identity_reference"],
       "cost_per_call_usd": 0.0,
       "p50_latency_s": 4.0,
-      "max_resolution": [1024, 1024],
+      "max_resolution": [1024, 1280],
       "prompt_dialect": "instructional",
       "params": {},
       "enabled": false,
-      "notes": "FREE final tier, DISABLED by default and deliberately so. It works, but klein-4B is a distilled 4B model and its output is below fal's flux-pro/kontext, which is what the paid final tier buys. Finals are what she actually keeps and shows people. Enable this only if the budget is truly zero, and tell her plainly that finals are a step down. 1024x1024 costs 109.6 neurons, so ~91 finals a day. NOTE: this adapter cannot inpaint - the endpoint has no mask parameter - so the repair loop will decline rather than silently rewrite the whole photograph."
+      "notes": "FREE final tier, DISABLED by default and deliberately so. It works, but klein-4B is a distilled 4B model and its output is below fal's flux-pro/kontext, which is what the paid final tier buys. Finals are what she actually keeps and shows people. Enable this only if the budget is truly zero, and tell her plainly that finals are a step down. 1024x1280 is 6 tiles, so 161.7 neurons and ~62 finals a day; a full session of 6 previews plus 3 finals is ~830 neurons, about 12 sessions daily. NOTE: this adapter cannot inpaint - the endpoint has no mask parameter - so the repair loop will decline rather than silently rewrite the whole photograph."
     },
     {
       "adapter": "replicate",
