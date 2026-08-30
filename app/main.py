@@ -793,13 +793,20 @@ def _derivative(kind: str, name: str) -> Path:
     if path.exists():
         return path
 
-    row = services.store.image(Path(safe).stem)
-    original = Path(row.path) if row and row.path else None
-    if original and original.exists():
+    # The derivative is named after the source file, so the source is found by
+    # that same stem - NOT by image id, which is a different string entirely
+    # for anything the system generated rather than received.
+    stem = Path(safe).stem
+    for folder in (settings.images_dir, settings.uploads_dir):
+        matches = sorted(Path(folder).glob(f"{stem}.*"))
+        original = next((m for m in matches if m.suffix.lower() != ".webp"), None)
+        if original is None:
+            continue
         try:
-            build_derivatives(original, settings.derivatives_dir, stem=Path(safe).stem)
+            build_derivatives(original, settings.derivatives_dir)
         except Exception as exc:  # noqa: BLE001
             print(f"[estudio] AVISO: no pude reconstruir {safe}: {exc}")
+        break
     return path
 
 
@@ -820,9 +827,11 @@ def _record_image(**fields) -> None:
     if not path:
         return
     try:
-        build_derivatives(
-            Path(path), settings.derivatives_dir, stem=str(fields["image_id"])
-        )
+        # Named after the SOURCE file, which is what the templates request:
+        # galeria.html asks for /media/thumb/{{ image.stem }}.webp, and
+        # image.stem is the stem of the stored file. Naming these by image_id
+        # instead produced the same mismatch in the opposite direction.
+        build_derivatives(Path(path), settings.derivatives_dir)
     except Exception as exc:  # noqa: BLE001
         # A thumbnail is a convenience; the photograph is the deliverable.
         # Failing to shrink it must never lose it.

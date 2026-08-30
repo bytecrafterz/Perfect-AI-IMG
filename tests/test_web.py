@@ -235,15 +235,14 @@ def test_she_is_still_told_when_the_photos_are_not_real() -> None:
         assert any("no estoy generando fotos de verdad" in w for w in hers)
 
 
-def test_generated_photos_get_a_thumbnail_named_by_image_id(tmp_path) -> None:
-    """The gallery asks for /media/thumb/<image_id>.webp.
+def test_a_thumbnail_is_named_after_the_file_the_template_asks_for(tmp_path) -> None:
+    """galeria.html requests /media/thumb/{{ image.stem }}.webp, and
+    image.stem is the stem of the STORED FILE - not the image id.
 
-    build_derivatives named its output after the SOURCE filename, which is
-    correct only because an upload is stored under its own image id. A
-    generated photograph keeps the provider's filename, so the derivative was
-    written as <provider-filename>.webp - the same picture under a name
-    nothing would ever request, and a broken icon for every photo the system
-    produced.
+    This test first asserted the opposite, which was my own error: told that
+    generated photos had no thumbnail, I renamed the derivative to the image
+    id and produced exactly the same mismatch pointing the other way. The
+    naming was never wrong. Only the building was missing.
     """
     from PIL import Image
 
@@ -252,10 +251,10 @@ def test_generated_photos_get_a_thumbnail_named_by_image_id(tmp_path) -> None:
     source = tmp_path / "cloudflare_flux-klein-preview-1788126238945.png"
     Image.new("RGB", (512, 640), (90, 90, 110)).save(source)
 
-    thumb, medium = build_derivatives(source, tmp_path / "deriv", stem="d8dca256cc5d")
+    thumb, medium = build_derivatives(source, tmp_path / "deriv")
 
-    assert thumb.name == "d8dca256cc5d.webp"
-    assert medium.name == "d8dca256cc5d.webp"
+    assert thumb.name == "cloudflare_flux-klein-preview-1788126238945.webp"
+    assert medium.name == thumb.name
     assert thumb.exists() and medium.exists()
 
 
