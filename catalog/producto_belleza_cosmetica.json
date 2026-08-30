@@ -1,0 +1,101 @@
+{
+  "version": "1.0",
+  "id": "producto_belleza_cosmetica",
+  "name": "Producto de belleza",
+  "category": "producto",
+  "cover_image": "covers/producto_belleza_cosmetica.webp",
+  "recipe": {
+    "garment": {
+      "type": "top liso de cuello alto",
+      "fabric": "punto fino mate",
+      "colors": [
+        "crema",
+        "blanco",
+        "negro"
+      ],
+      "details": "sin adornos, para que el producto lleve la atencion"
+    },
+    "scene": {
+      "place": "fondo de estudio color crema con una superficie de marmol",
+      "time": null,
+      "depth": "fondo liso, muy poca profundidad"
+    },
+    "lighting": {
+      "key": "ventana difusa grande a 45 grados",
+      "fill": "reflector blanco frontal",
+      "mood": "limpio, publicitario, sombra unica y suave"
+    },
+    "camera": {
+      "focal_mm": 85,
+      "aperture": "f/4.0",
+      "height": "pecho",
+      "framing": "primer plano"
+    },
+    "pose_family": [
+      "sosteniendo el producto junto a la cara",
+      "manos presentando el producto",
+      "aplicandose el producto"
+    ]
+  },
+  "applies_to": {
+    "framing": [
+      "primer plano",
+      "medio"
+    ],
+    "needs_body": false,
+    "replaces_background": true,
+    "min_source_quality": 0.55
+  },
+  "variation_axes": [
+    "gesture",
+    "expression",
+    "garment_color"
+  ],
+  "locks": [
+    "face",
+    "body_proportions",
+    "skin_tone",
+    "hair"
+  ],
+  "selectable": [
+    "garment_color",
+    "gesture",
+    "expression",
+    "framing"
+  ],
+  "chips": {
+    "garment_color": [
+      "crema",
+      "blanco",
+      "negro",
+      "gris topo"
+    ],
+    "gesture": [
+      "producto junto a la cara",
+      "manos presentando",
+      "aplicando el producto",
+      "producto en la palma"
+    ],
+    "expression": [
+      "sonrisa suave",
+      "neutra",
+      "mirada al producto"
+    ],
+    "framing": [
+      "como esta",
+      "primer plano"
+    ]
+  },
+  "chip_stats": {},
+  "route_hint": "in_place_edit",
+  "learned_params": {},
+  "stats": {
+    "first_try_rate": null,
+    "avg_cost_usd": null,
+    "keep_rate": null,
+    "sessions": 0,
+    "last_shown_at": null
+  },
+  "enabled": true,
+  "requires_coverage_off": false
+}

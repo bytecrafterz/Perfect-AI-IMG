@@ -1,0 +1,102 @@
+{
+  "version": "1.0",
+  "id": "playa_bikini_verano",
+  "name": "Bikini en la playa",
+  "category": "verano",
+  "cover_image": "covers/playa_bikini_verano.webp",
+  "recipe": {
+    "garment": {
+      "type": "bikini de playa",
+      "fabric": "lycra mate",
+      "colors": [
+        "negro",
+        "blanco",
+        "coral"
+      ],
+      "details": "conjunto clasico de dos piezas, corte de catalogo"
+    },
+    "scene": {
+      "place": "playa de arena clara con el mar al fondo",
+      "time": "media tarde, sol alto pero ya cayendo",
+      "depth": "rompiente desenfocada, horizonte limpio"
+    },
+    "lighting": {
+      "key": "sol directo desde atras a la derecha",
+      "fill": "rebote fuerte de la arena clara",
+      "mood": "veraniego, alto contraste, muy luminoso"
+    },
+    "camera": {
+      "focal_mm": 50,
+      "aperture": "f/2.8",
+      "height": "pecho",
+      "framing": "cuerpo entero"
+    },
+    "pose_family": [
+      "de pie en la orilla",
+      "caminando por la arena",
+      "sentada en la arena"
+    ]
+  },
+  "applies_to": {
+    "framing": [
+      "cuerpo entero"
+    ],
+    "needs_body": true,
+    "replaces_background": true,
+    "min_source_quality": 0.5
+  },
+  "variation_axes": [
+    "gesture",
+    "expression",
+    "garment_color",
+    "camera_angle"
+  ],
+  "locks": [
+    "face",
+    "body_proportions",
+    "skin_tone",
+    "hair"
+  ],
+  "selectable": [
+    "garment_color",
+    "gesture",
+    "expression",
+    "framing"
+  ],
+  "chips": {
+    "garment_color": [
+      "negro",
+      "blanco",
+      "coral",
+      "azul marino"
+    ],
+    "gesture": [
+      "de pie",
+      "caminando",
+      "sentada",
+      "mirando al mar"
+    ],
+    "expression": [
+      "sonrisa abierta",
+      "sonrisa suave",
+      "neutra",
+      "riendo"
+    ],
+    "framing": [
+      "cuerpo entero"
+    ]
+  },
+  "chip_stats": {},
+  "route_hint": "in_place_edit",
+  "learned_params": {},
+  "stats": {
+    "first_try_rate": null,
+    "avg_cost_usd": null,
+    "keep_rate": null,
+    "sessions": 0,
+    "last_shown_at": null
+  },
+  "enabled": true,
+  "requires_coverage_off": true,
+  "_note": "Retenido mientras COVERAGE_POLICY este activa. No se muestra en el catalogo hasta que la politica se relaje en el traspaso."
+}

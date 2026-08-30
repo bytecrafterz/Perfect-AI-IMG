@@ -698,7 +698,13 @@ async def ajustes(request: Request) -> Response:
             "caps": settings.caps,
             "preview_count": settings.preview_count,
             "warnings": services.warnings(),
-            "catalog_size": len(services.catalog),
+            # Available, not the raw file count. They differ whenever the
+            # coverage policy is holding looks back, and a settings page that
+            # says 21 while she is offered 18 gets reported as a loading bug.
+            "catalog_size": len(services.catalog.all()),
+            "catalog_withheld": len(services.catalog.withheld())
+            if settings.coverage_enforced
+            else 0,
             "tab": "ajustes",
         },
     )

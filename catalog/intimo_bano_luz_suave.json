@@ -1,0 +1,116 @@
+{
+  "version": "1.0",
+  "id": "intimo_bano_luz_suave",
+  "name": "Bano con luz suave",
+  "category": "intimo",
+  "cover_image": "covers/intimo_bano_luz_suave.webp",
+  "recipe": {
+    "garment": {
+      "type": "bata de seda",
+      "fabric": "seda",
+      "colors": [
+        "marfil",
+        "negro",
+        "gris perla"
+      ],
+      "details": "bata anudada, hombros descubiertos"
+    },
+    "scene": {
+      "place": "bano de marmol claro con banera exenta y velas encendidas",
+      "time": "atardecer",
+      "depth": "vapor suave en el aire, espejo empanado al fondo"
+    },
+    "lighting": {
+      "key": "luz calida y baja de las velas",
+      "fill": "ventana pequena con luz fria de atardecer",
+      "mood": "intimo, calido, contraste bajo"
+    },
+    "camera": {
+      "focal_mm": 50,
+      "aperture": "f/1.8",
+      "height": "pecho",
+      "framing": "medio"
+    },
+    "pose_family": [
+      "sentada en el borde de la banera",
+      "de pie junto al espejo",
+      "apoyada en el marmol"
+    ]
+  },
+  "applies_to": {
+    "framing": [
+      "primer plano",
+      "medio"
+    ],
+    "needs_body": false,
+    "replaces_background": true,
+    "min_source_quality": 0.55
+  },
+  "variation_axes": [
+    "gesture",
+    "expression",
+    "light",
+    "camera_angle"
+  ],
+  "locks": [
+    "face",
+    "body_proportions",
+    "skin_tone",
+    "hair"
+  ],
+  "selectable": [
+    "garment",
+    "garment_color",
+    "gesture",
+    "expression",
+    "light",
+    "framing"
+  ],
+  "chips": {
+    "garment": [
+      "bata de seda",
+      "toalla anudada",
+      "camison"
+    ],
+    "garment_color": [
+      "marfil",
+      "negro",
+      "gris perla"
+    ],
+    "gesture": [
+      "sentada en la banera",
+      "junto al espejo",
+      "apoyada",
+      "mirando abajo"
+    ],
+    "expression": [
+      "neutra",
+      "sonrisa suave",
+      "seria",
+      "mirada baja"
+    ],
+    "light": [
+      "velas",
+      "ventana fria",
+      "mixta"
+    ],
+    "framing": [
+      "como esta",
+      "primer plano",
+      "medio"
+    ]
+  },
+  "chip_stats": {},
+  "route_hint": "in_place_edit",
+  "learned_params": {},
+  "stats": {
+    "first_try_rate": null,
+    "avg_cost_usd": null,
+    "keep_rate": null,
+    "sessions": 0,
+    "last_shown_at": null
+  },
+  "enabled": true,
+  "requires_coverage_off": true,
+  "_note": "Retenido mientras COVERAGE_POLICY este activa. No se muestra en el catalogo hasta que la politica se relaje en el traspaso."
+}

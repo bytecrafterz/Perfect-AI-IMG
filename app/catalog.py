@@ -55,8 +55,42 @@ class Catalog:
         )
         self._looks[look.id] = look
 
-    def all(self) -> list[LookRecipe]:
-        return [look for look in self._looks.values() if look.enabled]
+    def all(self, *, coverage_enforced: bool | None = None) -> list[LookRecipe]:
+        """Every look she may be offered right now.
+
+        Two different kinds of "not available" live here, and keeping them
+        apart is the point:
+
+        ``enabled=False``               retired. Gone until someone edits it.
+        ``requires_coverage_off=True``  authored and ready, but waiting on a
+                                        decision about coverage that has not
+                                        been taken yet.
+
+        The second set comes back with one line in .env - no file edits, no
+        deploy - which is what makes handover a decision rather than a task.
+        """
+        if coverage_enforced is None:
+            from app.config import settings
+
+            coverage_enforced = settings.coverage_enforced
+        return [
+            look
+            for look in self._looks.values()
+            if look.enabled and not (look.requires_coverage_off and coverage_enforced)
+        ]
+
+    def withheld(self) -> list[LookRecipe]:
+        """Looks held back only by the coverage policy.
+
+        So the state is inspectable. A catalog that silently shows fewer
+        entries than it holds is the kind of thing that gets diagnosed as a
+        loading bug at exactly the wrong moment.
+        """
+        return [
+            look
+            for look in self._looks.values()
+            if look.enabled and look.requires_coverage_off
+        ]
 
     def get(self, look_id: str) -> LookRecipe | None:
         return self._looks.get(look_id)

@@ -30,7 +30,18 @@
 </div>
 
 <h2>Estado del sistema</h2>
-<div class="stat"><span>Estilos en el catálogo</span><span>{{ catalog_size }}</span></div>
+<div class="stat"><span>Estilos disponibles</span><span>{{ catalog_size }}</span></div>
+{% if catalog_withheld %}
+  <div class="stat">
+    <span>Estilos en pausa</span>
+    <span>{{ catalog_withheld }}</span>
+  </div>
+  <p class="hint" style="margin:4px 0 12px;">
+    Hay {{ catalog_withheld }} estilo{{ 's' if catalog_withheld != 1 }} guardado{{ 's' if catalog_withheld != 1 }}
+    que no se muestra{{ 'n' if catalog_withheld != 1 }} mientras la política de cobertura esté activa.
+    No se han borrado: se activan cambiando <code>COVERAGE_POLICY</code> en el archivo <code>.env</code>.
+  </p>
+{% endif %}
 
 {% if warnings %}
   <div class="notice bad">

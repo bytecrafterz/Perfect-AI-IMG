@@ -1,0 +1,110 @@
+{
+  "version": "1.0",
+  "id": "moda_gala_noche",
+  "name": "Gala de noche",
+  "category": "moda",
+  "cover_image": "covers/moda_gala_noche.webp",
+  "recipe": {
+    "garment": {
+      "type": "vestido largo de gala",
+      "fabric": "terciopelo con caida pesada",
+      "colors": [
+        "negro",
+        "azul noche",
+        "esmeralda"
+      ],
+      "details": "manga larga, cuello alto, falda hasta el suelo"
+    },
+    "scene": {
+      "place": "escalinata de marmol de un hotel clasico",
+      "time": "noche",
+      "depth": "lampara de arana desenfocada al fondo, puntos de luz calidos"
+    },
+    "lighting": {
+      "key": "luz calida cenital de la lampara",
+      "fill": "panel suave frontal a media potencia",
+      "mood": "elegante, calido, sombras profundas"
+    },
+    "camera": {
+      "focal_mm": 85,
+      "aperture": "f/1.8",
+      "height": "pecho",
+      "framing": "cuerpo entero"
+    },
+    "pose_family": [
+      "de pie en la escalinata",
+      "mano en la barandilla",
+      "girando hacia camara"
+    ]
+  },
+  "applies_to": {
+    "framing": [
+      "medio",
+      "cuerpo entero"
+    ],
+    "needs_body": true,
+    "replaces_background": true,
+    "min_source_quality": 0.5
+  },
+  "variation_axes": [
+    "gesture",
+    "expression",
+    "garment_color",
+    "camera_angle"
+  ],
+  "locks": [
+    "face",
+    "body_proportions",
+    "skin_tone",
+    "hair"
+  ],
+  "selectable": [
+    "garment",
+    "garment_color",
+    "gesture",
+    "expression",
+    "framing"
+  ],
+  "chips": {
+    "garment": [
+      "vestido largo de gala",
+      "vestido de terciopelo",
+      "traje de esmoquin"
+    ],
+    "garment_color": [
+      "negro",
+      "azul noche",
+      "esmeralda",
+      "burdeos"
+    ],
+    "gesture": [
+      "de pie",
+      "mano en barandilla",
+      "girando",
+      "mirando atras"
+    ],
+    "expression": [
+      "neutra",
+      "sonrisa suave",
+      "seria",
+      "mirada baja"
+    ],
+    "framing": [
+      "como esta",
+      "medio",
+      "cuerpo entero"
+    ]
+  },
+  "chip_stats": {},
+  "route_hint": "in_place_edit",
+  "learned_params": {},
+  "stats": {
+    "first_try_rate": null,
+    "avg_cost_usd": null,
+    "keep_rate": null,
+    "sessions": 0,
+    "last_shown_at": null
+  },
+  "enabled": true,
+  "requires_coverage_off": false
+}

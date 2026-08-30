@@ -1,0 +1,110 @@
+{
+  "version": "1.0",
+  "id": "escenario_jardin_primavera",
+  "name": "Jardin en primavera",
+  "category": "escenarios",
+  "cover_image": "covers/escenario_jardin_primavera.webp",
+  "recipe": {
+    "garment": {
+      "type": "vestido midi de manga larga",
+      "fabric": "algodon ligero",
+      "colors": [
+        "blanco roto",
+        "azul cielo",
+        "verde salvia"
+      ],
+      "details": "cuello cerrado, falda hasta media pierna"
+    },
+    "scene": {
+      "place": "jardin con setos recortados y un arco de glicinias en flor",
+      "time": "media manana",
+      "depth": "vegetacion muy desenfocada, puntos de luz entre las hojas"
+    },
+    "lighting": {
+      "key": "sol filtrado entre las hojas",
+      "fill": "rebote verde suave de la vegetacion",
+      "mood": "luminoso, fresco, alto en luz"
+    },
+    "camera": {
+      "focal_mm": 85,
+      "aperture": "f/1.8",
+      "height": "pecho",
+      "framing": "medio"
+    },
+    "pose_family": [
+      "de pie bajo el arco",
+      "caminando por el sendero",
+      "oliendo una flor"
+    ]
+  },
+  "applies_to": {
+    "framing": [
+      "medio",
+      "cuerpo entero"
+    ],
+    "needs_body": true,
+    "replaces_background": true,
+    "min_source_quality": 0.45
+  },
+  "variation_axes": [
+    "gesture",
+    "expression",
+    "garment_color",
+    "camera_angle"
+  ],
+  "locks": [
+    "face",
+    "body_proportions",
+    "skin_tone",
+    "hair"
+  ],
+  "selectable": [
+    "garment",
+    "garment_color",
+    "gesture",
+    "expression",
+    "framing"
+  ],
+  "chips": {
+    "garment": [
+      "vestido midi",
+      "blusa y falda",
+      "mono largo"
+    ],
+    "garment_color": [
+      "blanco roto",
+      "azul cielo",
+      "verde salvia",
+      "amarillo palido"
+    ],
+    "gesture": [
+      "de pie",
+      "caminando",
+      "girando",
+      "mano en el pelo"
+    ],
+    "expression": [
+      "sonrisa abierta",
+      "sonrisa suave",
+      "neutra",
+      "riendo"
+    ],
+    "framing": [
+      "como esta",
+      "medio",
+      "cuerpo entero"
+    ]
+  },
+  "chip_stats": {},
+  "route_hint": "in_place_edit",
+  "learned_params": {},
+  "stats": {
+    "first_try_rate": null,
+    "avg_cost_usd": null,
+    "keep_rate": null,
+    "sessions": 0,
+    "last_shown_at": null
+  },
+  "enabled": true,
+  "requires_coverage_off": false
+}

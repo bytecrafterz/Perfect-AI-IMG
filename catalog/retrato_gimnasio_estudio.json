@@ -1,0 +1,103 @@
+{
+  "version": "1.0",
+  "id": "retrato_gimnasio_estudio",
+  "name": "Deportivo en estudio",
+  "category": "retrato",
+  "cover_image": "covers/retrato_gimnasio_estudio.webp",
+  "recipe": {
+    "garment": {
+      "type": "conjunto deportivo de manga larga",
+      "fabric": "tejido tecnico mate",
+      "colors": [
+        "negro",
+        "gris jaspeado",
+        "azul marino"
+      ],
+      "details": "camiseta de manga larga y leggings largos, corte limpio"
+    },
+    "scene": {
+      "place": "estudio industrial con suelo de cemento pulido",
+      "time": null,
+      "depth": "fondo oscuro degradado, algo de humo en el aire"
+    },
+    "lighting": {
+      "key": "luz dura lateral desde la derecha",
+      "fill": "rebote negro a la izquierda para hundir la sombra",
+      "mood": "contrastado, definicion marcada"
+    },
+    "camera": {
+      "focal_mm": 50,
+      "aperture": "f/2.8",
+      "height": "pecho",
+      "framing": "medio"
+    },
+    "pose_family": [
+      "de pie con brazos cruzados",
+      "manos en las caderas",
+      "estiramiento de hombro"
+    ]
+  },
+  "applies_to": {
+    "framing": [
+      "medio",
+      "cuerpo entero"
+    ],
+    "needs_body": true,
+    "replaces_background": true,
+    "min_source_quality": 0.45
+  },
+  "variation_axes": [
+    "gesture",
+    "expression",
+    "garment_color",
+    "camera_angle"
+  ],
+  "locks": [
+    "face",
+    "body_proportions",
+    "skin_tone",
+    "hair"
+  ],
+  "selectable": [
+    "garment_color",
+    "gesture",
+    "expression",
+    "framing"
+  ],
+  "chips": {
+    "garment_color": [
+      "negro",
+      "gris jaspeado",
+      "azul marino",
+      "burdeos"
+    ],
+    "gesture": [
+      "brazos cruzados",
+      "manos en caderas",
+      "de pie",
+      "estirando"
+    ],
+    "expression": [
+      "seria",
+      "neutra",
+      "concentrada"
+    ],
+    "framing": [
+      "como esta",
+      "medio",
+      "cuerpo entero"
+    ]
+  },
+  "chip_stats": {},
+  "route_hint": "in_place_edit",
+  "learned_params": {},
+  "stats": {
+    "first_try_rate": null,
+    "avg_cost_usd": null,
+    "keep_rate": null,
+    "sessions": 0,
+    "last_shown_at": null
+  },
+  "enabled": true,
+  "requires_coverage_off": false
+}

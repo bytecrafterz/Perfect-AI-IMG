@@ -1,0 +1,117 @@
+{
+  "version": "1.0",
+  "id": "escenario_biblioteca_calida",
+  "name": "Biblioteca calida",
+  "category": "escenarios",
+  "cover_image": "covers/escenario_biblioteca_calida.webp",
+  "recipe": {
+    "garment": {
+      "type": "jersey de punto y pantalon de vestir",
+      "fabric": "punto grueso",
+      "colors": [
+        "crema",
+        "camel",
+        "verde botella"
+      ],
+      "details": "cuello alto, manga larga"
+    },
+    "scene": {
+      "place": "biblioteca antigua con estanterias de madera hasta el techo",
+      "time": "media tarde",
+      "depth": "hileras de libros desenfocadas, escalera de madera al fondo"
+    },
+    "lighting": {
+      "key": "ventanal alto a la izquierda",
+      "fill": "lampara de mesa calida fuera de encuadre",
+      "mood": "calido, intimo, contraste medio"
+    },
+    "camera": {
+      "focal_mm": 50,
+      "aperture": "f/1.8",
+      "height": "pecho",
+      "framing": "medio"
+    },
+    "pose_family": [
+      "sentada leyendo",
+      "de pie junto a la estanteria",
+      "apoyada en la mesa"
+    ]
+  },
+  "applies_to": {
+    "framing": [
+      "primer plano",
+      "medio",
+      "cuerpo entero"
+    ],
+    "needs_body": false,
+    "replaces_background": true,
+    "min_source_quality": 0.4
+  },
+  "variation_axes": [
+    "gesture",
+    "expression",
+    "garment_color",
+    "light"
+  ],
+  "locks": [
+    "face",
+    "body_proportions",
+    "skin_tone",
+    "hair"
+  ],
+  "selectable": [
+    "garment",
+    "garment_color",
+    "gesture",
+    "expression",
+    "light",
+    "framing"
+  ],
+  "chips": {
+    "garment": [
+      "jersey de punto",
+      "camisa y chaleco",
+      "blazer"
+    ],
+    "garment_color": [
+      "crema",
+      "camel",
+      "verde botella",
+      "gris"
+    ],
+    "gesture": [
+      "sentada leyendo",
+      "de pie",
+      "apoyada",
+      "sosteniendo un libro"
+    ],
+    "expression": [
+      "neutra",
+      "sonrisa suave",
+      "seria",
+      "mirada baja"
+    ],
+    "light": [
+      "ventana lateral",
+      "lampara calida",
+      "contraluz suave"
+    ],
+    "framing": [
+      "como esta",
+      "primer plano",
+      "medio"
+    ]
+  },
+  "chip_stats": {},
+  "route_hint": "in_place_edit",
+  "learned_params": {},
+  "stats": {
+    "first_try_rate": null,
+    "avg_cost_usd": null,
+    "keep_rate": null,
+    "sessions": 0,
+    "last_shown_at": null
+  },
+  "enabled": true,
+  "requires_coverage_off": false
+}

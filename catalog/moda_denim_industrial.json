@@ -1,0 +1,110 @@
+{
+  "version": "1.0",
+  "id": "moda_denim_industrial",
+  "name": "Denim industrial",
+  "category": "moda",
+  "cover_image": "covers/moda_denim_industrial.webp",
+  "recipe": {
+    "garment": {
+      "type": "camisa vaquera y pantalon vaquero",
+      "fabric": "denim rigido",
+      "colors": [
+        "azul medio",
+        "azul oscuro",
+        "negro lavado"
+      ],
+      "details": "camisa abotonada hasta arriba, manga remangada al codo"
+    },
+    "scene": {
+      "place": "nave industrial con ventanales altos y estructura metalica",
+      "time": "media tarde",
+      "depth": "profundidad larga por el pasillo de la nave, muy desenfocada"
+    },
+    "lighting": {
+      "key": "luz de ventanal difusa que entra lateral",
+      "fill": "rebote del suelo claro",
+      "mood": "neutro, algo frio"
+    },
+    "camera": {
+      "focal_mm": 35,
+      "aperture": "f/2.8",
+      "height": "pecho",
+      "framing": "cuerpo entero"
+    },
+    "pose_family": [
+      "de pie de frente",
+      "apoyada en una columna",
+      "caminando de lado"
+    ]
+  },
+  "applies_to": {
+    "framing": [
+      "medio",
+      "cuerpo entero"
+    ],
+    "needs_body": true,
+    "replaces_background": true,
+    "min_source_quality": 0.45
+  },
+  "variation_axes": [
+    "gesture",
+    "expression",
+    "garment_color",
+    "camera_angle"
+  ],
+  "locks": [
+    "face",
+    "body_proportions",
+    "skin_tone",
+    "hair"
+  ],
+  "selectable": [
+    "garment",
+    "garment_color",
+    "gesture",
+    "expression",
+    "framing"
+  ],
+  "chips": {
+    "garment": [
+      "camisa vaquera",
+      "cazadora vaquera",
+      "mono vaquero"
+    ],
+    "garment_color": [
+      "azul medio",
+      "azul oscuro",
+      "negro lavado",
+      "blanco roto"
+    ],
+    "gesture": [
+      "de pie",
+      "apoyada",
+      "caminando",
+      "manos en bolsillos"
+    ],
+    "expression": [
+      "neutra",
+      "sonrisa suave",
+      "seria",
+      "mirada baja"
+    ],
+    "framing": [
+      "como esta",
+      "medio",
+      "cuerpo entero"
+    ]
+  },
+  "chip_stats": {},
+  "route_hint": "in_place_edit",
+  "learned_params": {},
+  "stats": {
+    "first_try_rate": null,
+    "avg_cost_usd": null,
+    "keep_rate": null,
+    "sessions": 0,
+    "last_shown_at": null
+  },
+  "enabled": true,
+  "requires_coverage_off": false
+}

@@ -124,6 +124,19 @@ class LookRecipe(BaseModel):
 
     enabled: bool = True
 
+    #: Looks that only make sense with the coverage policy relaxed.
+    #:
+    #: Swimwear, lingerie, bath scenes. They are authored in full and kept in
+    #: the catalog, but stay hidden while COVERAGE_POLICY is enforced - not
+    #: merely toned down, hidden. A lingerie look rendered under a coverage
+    #: clause is not a milder version of itself; it is a contradiction that
+    #: wastes a generation and reads as a bug.
+    #:
+    #: Deliberately NOT the `enabled` flag. `enabled` means retired. This
+    #: means waiting on a decision not yet taken, and one line in .env brings
+    #: every one of them back at handover.
+    requires_coverage_off: bool = False
+
     # -- validation ---------------------------------------------------------
 
     @field_validator("locks")

@@ -1,0 +1,101 @@
+{
+  "version": "1.0",
+  "id": "retrato_primer_plano_belleza",
+  "name": "Primer plano belleza",
+  "category": "retrato",
+  "cover_image": "covers/retrato_primer_plano_belleza.webp",
+  "recipe": {
+    "garment": {
+      "type": "top liso de cuello alto",
+      "fabric": "punto fino",
+      "colors": [
+        "negro",
+        "crema",
+        "gris topo"
+      ],
+      "details": "sin estampado, para que nada compita con la cara"
+    },
+    "scene": {
+      "place": "fondo liso de estudio, gris medio",
+      "time": null,
+      "depth": "fondo completamente limpio, sin textura"
+    },
+    "lighting": {
+      "key": "beauty dish frontal ligeramente elevado",
+      "fill": "reflector plateado bajo la barbilla",
+      "mood": "limpio, sombras suaves bajo los pomulos"
+    },
+    "camera": {
+      "focal_mm": 105,
+      "aperture": "f/4.0",
+      "height": "ojos",
+      "framing": "primer plano"
+    },
+    "pose_family": [
+      "frontal a camara",
+      "leve giro de tres cuartos",
+      "barbilla adelantada"
+    ]
+  },
+  "applies_to": {
+    "framing": [
+      "primer plano",
+      "medio"
+    ],
+    "needs_body": false,
+    "replaces_background": true,
+    "min_source_quality": 0.55
+  },
+  "variation_axes": [
+    "expression",
+    "garment_color",
+    "camera_angle"
+  ],
+  "locks": [
+    "face",
+    "body_proportions",
+    "skin_tone",
+    "hair"
+  ],
+  "selectable": [
+    "garment_color",
+    "expression",
+    "light",
+    "framing"
+  ],
+  "chips": {
+    "garment_color": [
+      "negro",
+      "crema",
+      "gris topo",
+      "blanco"
+    ],
+    "expression": [
+      "neutra",
+      "sonrisa suave",
+      "seria",
+      "mirada baja"
+    ],
+    "light": [
+      "suave frontal",
+      "lateral marcada",
+      "clave alta"
+    ],
+    "framing": [
+      "como esta",
+      "primer plano"
+    ]
+  },
+  "chip_stats": {},
+  "route_hint": "in_place_edit",
+  "learned_params": {},
+  "stats": {
+    "first_try_rate": null,
+    "avg_cost_usd": null,
+    "keep_rate": null,
+    "sessions": 0,
+    "last_shown_at": null
+  },
+  "enabled": true,
+  "requires_coverage_off": false
+}

@@ -1,0 +1,110 @@
+{
+  "version": "1.0",
+  "id": "moda_abrigo_invierno",
+  "name": "Abrigo de invierno",
+  "category": "moda",
+  "cover_image": "covers/moda_abrigo_invierno.webp",
+  "recipe": {
+    "garment": {
+      "type": "abrigo largo de lana",
+      "fabric": "lana gruesa",
+      "colors": [
+        "camel",
+        "gris marengo",
+        "negro"
+      ],
+      "details": "cinturon anudado, cuello subido, bufanda de punto"
+    },
+    "scene": {
+      "place": "calle adoquinada del centro historico con arboles sin hojas",
+      "time": "manana de invierno, cielo cubierto",
+      "depth": "fachadas antiguas desenfocadas, algo de niebla al fondo"
+    },
+    "lighting": {
+      "key": "luz de dia difusa por el cielo cubierto",
+      "fill": "rebote del adoquin humedo",
+      "mood": "frio, plano, muy suave"
+    },
+    "camera": {
+      "focal_mm": 50,
+      "aperture": "f/2.0",
+      "height": "pecho",
+      "framing": "cuerpo entero"
+    },
+    "pose_family": [
+      "caminando hacia camara",
+      "ajustandose la bufanda",
+      "de pie de tres cuartos"
+    ]
+  },
+  "applies_to": {
+    "framing": [
+      "medio",
+      "cuerpo entero"
+    ],
+    "needs_body": true,
+    "replaces_background": true,
+    "min_source_quality": 0.45
+  },
+  "variation_axes": [
+    "gesture",
+    "expression",
+    "garment_color",
+    "camera_angle"
+  ],
+  "locks": [
+    "face",
+    "body_proportions",
+    "skin_tone",
+    "hair"
+  ],
+  "selectable": [
+    "garment",
+    "garment_color",
+    "gesture",
+    "expression",
+    "framing"
+  ],
+  "chips": {
+    "garment": [
+      "abrigo largo de lana",
+      "trenca",
+      "abrigo acolchado"
+    ],
+    "garment_color": [
+      "camel",
+      "gris marengo",
+      "negro",
+      "verde oliva"
+    ],
+    "gesture": [
+      "caminando",
+      "ajustando bufanda",
+      "de pie",
+      "manos en bolsillos"
+    ],
+    "expression": [
+      "sonrisa abierta",
+      "sonrisa suave",
+      "neutra",
+      "riendo"
+    ],
+    "framing": [
+      "como esta",
+      "medio",
+      "cuerpo entero"
+    ]
+  },
+  "chip_stats": {},
+  "route_hint": "in_place_edit",
+  "learned_params": {},
+  "stats": {
+    "first_try_rate": null,
+    "avg_cost_usd": null,
+    "keep_rate": null,
+    "sessions": 0,
+    "last_shown_at": null
+  },
+  "enabled": true,
+  "requires_coverage_off": false
+}

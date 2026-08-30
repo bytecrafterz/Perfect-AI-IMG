@@ -1,0 +1,110 @@
+{
+  "version": "1.0",
+  "id": "escenario_cocina_luminosa",
+  "name": "Cocina luminosa",
+  "category": "escenarios",
+  "cover_image": "covers/escenario_cocina_luminosa.webp",
+  "recipe": {
+    "garment": {
+      "type": "camisa blanca y vaqueros",
+      "fabric": "popelin de algodon",
+      "colors": [
+        "blanco",
+        "azul claro",
+        "rayas finas"
+      ],
+      "details": "manga remangada, camisa por dentro"
+    },
+    "scene": {
+      "place": "cocina moderna de encimera clara con ventana grande al lado",
+      "time": "manana",
+      "depth": "estanteria con vajilla desenfocada al fondo"
+    },
+    "lighting": {
+      "key": "ventana grande lateral, luz de dia",
+      "fill": "rebote de la encimera blanca",
+      "mood": "limpio, luminoso, muy natural"
+    },
+    "camera": {
+      "focal_mm": 35,
+      "aperture": "f/2.2",
+      "height": "pecho",
+      "framing": "medio"
+    },
+    "pose_family": [
+      "apoyada en la encimera",
+      "sirviendo cafe",
+      "de pie de tres cuartos"
+    ]
+  },
+  "applies_to": {
+    "framing": [
+      "primer plano",
+      "medio"
+    ],
+    "needs_body": false,
+    "replaces_background": true,
+    "min_source_quality": 0.4
+  },
+  "variation_axes": [
+    "gesture",
+    "expression",
+    "garment_color",
+    "camera_angle"
+  ],
+  "locks": [
+    "face",
+    "body_proportions",
+    "skin_tone",
+    "hair"
+  ],
+  "selectable": [
+    "garment",
+    "garment_color",
+    "gesture",
+    "expression",
+    "framing"
+  ],
+  "chips": {
+    "garment": [
+      "camisa blanca",
+      "jersey fino",
+      "blusa de lino"
+    ],
+    "garment_color": [
+      "blanco",
+      "azul claro",
+      "beige",
+      "gris perla"
+    ],
+    "gesture": [
+      "apoyada en la encimera",
+      "sirviendo cafe",
+      "de pie",
+      "sonriendo a camara"
+    ],
+    "expression": [
+      "sonrisa abierta",
+      "sonrisa suave",
+      "neutra",
+      "riendo"
+    ],
+    "framing": [
+      "como esta",
+      "primer plano",
+      "medio"
+    ]
+  },
+  "chip_stats": {},
+  "route_hint": "in_place_edit",
+  "learned_params": {},
+  "stats": {
+    "first_try_rate": null,
+    "avg_cost_usd": null,
+    "keep_rate": null,
+    "sessions": 0,
+    "last_shown_at": null
+  },
+  "enabled": true,
+  "requires_coverage_off": false
+}
