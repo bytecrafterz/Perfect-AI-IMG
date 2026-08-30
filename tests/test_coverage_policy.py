@@ -85,7 +85,7 @@ def reckless_look() -> LookRecipe:
 @pytest.mark.parametrize("dialect", DIALECTS)
 def test_every_dialect_states_the_requirement(dialect) -> None:
     prompt = compile_one(enforce=True, dialect=dialect).request.prompt.lower()
-    for phrase in ("high closed neckline", "legs completely covered", "midriff"):
+    for phrase in ("high closed collar", "legs completely covered", "midriff"):
         assert phrase in prompt, f"{dialect.value} dropped '{phrase}'"
 
 
@@ -109,12 +109,12 @@ def test_an_edited_ir_cannot_drop_it() -> None:
     vandalised.locks = []
     vandalised.mutable = list(Attribute)
     prompt = compile_one(enforce=True, ir=vandalised).request.prompt.lower()
-    assert "high closed neckline" in prompt
+    assert "high closed collar" in prompt
 
 
 def test_a_look_asking_for_exposure_is_neutralised_not_obeyed() -> None:
     compiled = compile_one(enforce=True, look=reckless_look())
-    assert "high closed neckline" in compiled.request.prompt.lower()
+    assert "high closed collar" in compiled.request.prompt.lower()
     assert "backless" in compiled.request.negative_prompt.lower()
     assert "sheer" in compiled.request.negative_prompt.lower()
 
@@ -122,7 +122,7 @@ def test_a_look_asking_for_exposure_is_neutralised_not_obeyed() -> None:
 def test_a_chip_selection_cannot_override_it() -> None:
     slot = Slot(index=0, constrained={Attribute.GARMENT: "bikini"}, seed=1)
     compiled = compile_one(enforce=True, slot=slot)
-    assert "high closed neckline" in compiled.request.prompt.lower()
+    assert "high closed collar" in compiled.request.prompt.lower()
     assert "bikini" in compiled.request.negative_prompt.lower()
 
 
@@ -130,7 +130,7 @@ def test_identity_locks_are_not_displaced_by_coverage() -> None:
     """Coverage was added to the same clause list as identity. One silently
     replacing the other would be easy to miss."""
     prompt = compile_one(enforce=True).request.prompt.lower()
-    assert "high closed neckline" in prompt          # coverage
+    assert "high closed collar" in prompt          # coverage
     assert "without slimming" in prompt              # anti-slimming
     assert "facial identity" in prompt               # identity
     assert set(ALWAYS_LOCKED) == {
@@ -144,7 +144,7 @@ def test_identity_locks_are_not_displaced_by_coverage() -> None:
 @pytest.mark.parametrize("dialect", DIALECTS)
 def test_disabled_removes_the_clause_entirely(dialect) -> None:
     prompt = compile_one(enforce=False, dialect=dialect).request.prompt.lower()
-    assert "high closed neckline" not in prompt
+    assert "high closed collar" not in prompt
     assert "legs completely covered" not in prompt
 
 
@@ -251,3 +251,103 @@ def test_the_setting_parses_sensibly(value: str, expected: bool, monkeypatch) ->
     finally:
         monkeypatch.delenv("COVERAGE_POLICY", raising=False)
         importlib.reload(config)
+
+
+# ---------------------------------------------------------------------------
+# The recipe's own wording must not contradict the policy
+# ---------------------------------------------------------------------------
+
+
+def test_the_recipe_cannot_ask_for_what_the_policy_forbids() -> None:
+    """The failure this closes.
+
+    A negative prompt alone was not enough. moda_terraza_atardecer specifies
+    'tirantes finos, espalda descubierta' and that text went into the SAME
+    prompt as 'no bare back, no bare shoulders'. The model was handed a
+    contradiction and resolved it however it liked - which is why exposure
+    kept appearing while every audit correctly reported the policy as active.
+    """
+    from app.compile.compiler import cover_recipe_text
+
+    assert "descubierta" not in (cover_recipe_text("tirantes finos, espalda descubierta") or "")
+    assert "abierto" not in (cover_recipe_text("cuello abierto, sin estampado") or "")
+
+
+@pytest.mark.parametrize(
+    "wording",
+    [
+        "strapless mini dress, backless, spaghetti straps",
+        "sheer top, exposed midriff, thigh slit",
+        "sleeveless blouse, low neckline",
+        "tirantes finos, espalda descubierta",
+        "conjunto de encaje, transparente",
+        "bikini, toalla",
+    ],
+)
+def test_exposing_wording_never_survives_in_either_language(wording: str) -> None:
+    """The catalog is written in Spanish, but nothing ENFORCES that.
+
+    A look or a chip authored in English would walk straight past a
+    Spanish-only filter - the quietest way for this policy to stop working
+    while every test still reports it on.
+    """
+    from app.compile.compiler import cover_recipe_text
+
+    result = (cover_recipe_text(wording) or "").lower()
+    for banned in (
+        "strapless", "backless", "spaghetti", "sheer", "midriff", "slit",
+        "sleeveless", "low neckline", "descubierta", "tirantes", "encaje",
+        "transparente", "bikini", "toalla",
+    ):
+        assert banned not in result, f"{banned!r} survived in {result!r}"
+
+
+def test_already_covered_wording_is_left_alone() -> None:
+    """A filter that mangles innocent text would be worse than none - the
+    looks would quietly lose the detail that makes them look like anything."""
+    from app.compile.compiler import cover_recipe_text
+
+    for safe in (
+        "manga larga, cuello alto, falda hasta el suelo",
+        "cinturon anudado, cuello subido, bufanda de punto",
+        "long wool coat, high collar, full length",
+    ):
+        assert cover_recipe_text(safe) == safe
+
+
+def test_the_clause_states_all_three_requirements() -> None:
+    """Neck, body, legs - named explicitly by the client, so pinned here
+    rather than left to a reviewer's reading of a long sentence."""
+    from app.compile.compiler import COVERAGE_CLAUSE
+
+    clause = COVERAGE_CLAUSE.lower()
+    assert "throat" in clause and "collar" in clause      # neck closed
+    assert "torso" in clause and "midriff" in clause      # body covered
+    assert "ankle" in clause                              # legs covered
+    assert "opaque" in clause                             # and not see-through
+
+
+def test_no_visible_look_carries_exposing_wording() -> None:
+    """The catalog itself, not just the compiler. A look offered to her should
+    not need rescuing by a filter - the filter is the backstop, not the plan.
+    """
+    import json
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    offenders = []
+    for path in sorted((root / "catalog").glob("*.json")):
+        look = json.loads(path.read_text(encoding="utf-8"))
+        if look.get("requires_coverage_off"):
+            continue  # already withheld while the policy is on
+        garment = (look.get("recipe") or {}).get("garment") or {}
+        text = f"{garment.get('type', '')} {garment.get('details', '')}".lower()
+        # Strong markers only. A minor detail such as "cuello abierto" on a
+        # corporate shirt is rewritten by the compiler and does not justify
+        # withholding a whole look; a bare back does, and that look is
+        # withheld rather than edited - "temporarily" has to mean the authored
+        # look survives intact for the handover.
+        for banned in ("descubiert", "tirantes", "escote", "sin mangas"):
+            if banned in text:
+                offenders.append(f"{look['id']}: {banned}")
+    assert offenders == [], f"visible looks still describe exposure: {offenders}"

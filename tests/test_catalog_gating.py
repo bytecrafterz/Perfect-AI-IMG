@@ -112,6 +112,11 @@ def test_the_revealing_looks_are_the_ones_held_back() -> None:
         "playa_bikini_verano",
         "intimo_lenceria_editorial",
         "intimo_bano_luz_suave",
+        # Added when the client asked for exposure to be eliminated entirely.
+        # A long dress, but with thin straps and a bare back - real exposure,
+        # not a detail the compiler can rewrite around. Withheld rather than
+        # edited so the authored look survives for the handover.
+        "moda_terraza_atardecer",
     }
 
 

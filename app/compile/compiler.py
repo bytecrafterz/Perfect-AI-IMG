@@ -70,13 +70,111 @@ _LOCK_PHRASES: dict[Attribute, str] = {
 # recipes render exactly as authored, with nothing to unpick.
 # ---------------------------------------------------------------------------
 
+#: Recipe wording that describes exposure, and what it becomes when the
+#: coverage policy is on.
+#:
+#: A negative prompt is not enough on its own. The catalog is written in
+#: Spanish and describes real garments, so "vestido largo, tirantes finos,
+#: espalda descubierta" went into the SAME prompt as "no bare back, no bare
+#: shoulders". The model was handed a contradiction and resolved it however it
+#: liked - which is why exposure kept appearing while the policy was active
+#: and every audit said the policy was on.
+#:
+#: Substitution rather than deletion where a covered equivalent exists: an
+#: evening dress still needs sleeves described, or the model invents them.
+_COVERED_SUBSTITUTIONS: dict[str, str] = {
+    "cuello abierto": "cuello alto cerrado",
+    "tirantes finos": "manga larga",
+    "tirantes": "manga larga",
+    "espalda descubierta": "espalda completamente cubierta",
+    "hombros descubiertos": "hombros cubiertos",
+    "sin mangas": "manga larga",
+    "palabra de honor": "cuello alto con manga larga",
+    "escote pronunciado": "cuello alto",
+    "escote": "cuello alto cerrado",
+    # A chip she can tap. Mild, but "open" over a covered torso still invites
+    # the model to show what is underneath.
+    "abrigo abierto": "abrigo cerrado y abrochado",
+    "camisa abierta": "camisa abrochada hasta el cuello",
+    # English too. The catalog is written in Spanish, but nothing ENFORCES
+    # that - a look or a chip authored in English would otherwise walk
+    # straight past a Spanish-only filter, which is the quietest way for this
+    # policy to stop working while every test still says it is on.
+    "strapless": "high collar with long sleeves",
+    "spaghetti straps": "long sleeves",
+    "off-shoulder": "covered shoulders",
+    "off the shoulder": "covered shoulders",
+    "bare shoulders": "covered shoulders",
+    "open back": "fully covered back",
+    "backless": "fully covered back",
+    "bare back": "fully covered back",
+    "low neckline": "high closed collar",
+    "plunging neckline": "high closed collar",
+    "deep v-neck": "high closed collar",
+    "halter": "high closed collar with long sleeves",
+    "sleeveless": "long sleeves",
+    "open collar": "collar fastened to the throat",
+    "unbuttoned": "fully buttoned",
+    "mini dress": "floor-length dress",
+    "mini skirt": "floor-length skirt",
+    "short skirt": "floor-length skirt",
+    "shorts": "full-length trousers",
+}
+
+#: Fragments with no covered equivalent - the garment IS the exposure, so the
+#: fragment is dropped rather than rewritten.
+_EXPOSING_FRAGMENTS: tuple[str, ...] = (
+    # Spanish - how the catalog is written today
+    "transparente", "translucido", "semitransparente",
+    "abertura", "crop", "ombligo", "descubierto", "descubierta",
+    "al aire", "encaje", "lenceria", "bikini", "toalla",
+    # English - because nothing enforces the catalog's language
+    "sheer", "see-through", "see through", "transparent", "mesh",
+    "crop top", "midriff", "cleavage", "slit", "lingerie", "swimsuit",
+    "bikini", "underwear", "nightgown", "towel", "bathrobe", "lace",
+    "bare legs", "bare chest", "bare neck", "topless", "nude",
+)
+
+
+def cover_recipe_text(text: str | None) -> str | None:
+    """Rewrite one recipe fragment so it cannot ask for exposure.
+
+    Applied to garment type, details and chips whenever the coverage policy is
+    enforced. Comma-separated because that is how the catalog writes details,
+    and dropping one clause must not take the rest of the sentence with it.
+    """
+    if not text:
+        return text
+    kept: list[str] = []
+    for fragment in text.split(","):
+        piece = fragment.strip()
+        if not piece:
+            continue
+        lowered = piece.lower()
+        replaced = None
+        for phrase, covered in _COVERED_SUBSTITUTIONS.items():
+            if phrase in lowered:
+                replaced = covered
+                break
+        if replaced is not None:
+            if replaced not in kept:
+                kept.append(replaced)
+            continue
+        if any(bad in lowered for bad in _EXPOSING_FRAGMENTS):
+            continue  # no covered version of this exists - drop it
+        kept.append(piece)
+    return ", ".join(kept) if kept else None
+
+
 COVERAGE_CLAUSE = (
-    "modest full coverage: a high closed neckline covering the collarbones and "
-    "throat, sleeves covering the shoulders and upper arms, the torso and "
-    "midriff fully covered, and legs completely covered to the ankle by "
-    "trousers or a full-length skirt or dress. No cleavage, no bare shoulders, "
-    "no bare back, no exposed midriff, no bare legs, no sheer or "
-    "see-through fabric"
+    "modest full coverage, strictly enforced: a high closed collar fastened to "
+    "the base of the throat, covering the neck, collarbones and chest "
+    "completely; long sleeves to the wrist covering both shoulders and arms; "
+    "the back, torso and midriff fully covered with no opening of any kind; "
+    "legs completely covered to the ankle by full-length trousers or a "
+    "floor-length skirt or dress. Opaque fabric only. No cleavage, no open "
+    "collar, no bare neck, no bare shoulders, no bare arms, no bare back, no "
+    "exposed midriff, no bare legs, no slit, no sheer or see-through fabric"
 )
 
 #: Negatives specific to the coverage policy. Separated from the general list
@@ -98,6 +196,23 @@ _COVERAGE_NEGATIVES: tuple[str, ...] = (
     "bare legs",
     "short skirt",
     "mini skirt",
+    # The three the client named explicitly: neck, body, legs.
+    "open collar",
+    "unbuttoned",
+    "bare neck",
+    "bare chest",
+    "deep v-neck",
+    "halter neck",
+    "thigh slit",
+    "high slit",
+    "shorts",
+    "swimsuit",
+    "bikini",
+    "lingerie",
+    "underwear",
+    "nightgown",
+    "towel",
+    "bathrobe",
     "shorts",
     "swimwear",
     "bikini",
@@ -298,6 +413,13 @@ class PromptCompiler:
                 continue
             template = _ATTRIBUTE_PHRASING.get(attribute)
             if template:
+                # Her own taps go through the same rewrite as the recipe. A
+                # chip like "abrigo abierto" is a value she chose, but under
+                # the coverage policy it still contradicts "torso fully
+                # covered" - and a contradiction the model resolves at random
+                # is exactly the failure the policy exists to prevent.
+                if self._enforce_coverage:
+                    value = cover_recipe_text(value) or value
                 clauses.append(template.format(value=value))
 
         if look:
@@ -326,10 +448,19 @@ class PromptCompiler:
                 # Same rule as scene and lighting: the recipe supplies it when
                 # she has not chosen for herself, and her choice wins when she
                 # has.
+                # Under the coverage policy the recipe's own wording is
+                # rewritten before it reaches the prompt, so the positive and
+                # the negative cannot contradict each other.
+                def covered(value: str | None) -> str | None:
+                    return cover_recipe_text(value) if self._enforce_coverage else value
+
                 if Attribute.GARMENT not in chosen:
-                    clauses.append(f"wearing {recipe.garment.type}")
-                if recipe.garment.details:
-                    clauses.append(recipe.garment.details)
+                    garment_type = covered(recipe.garment.type)
+                    if garment_type:
+                        clauses.append(f"wearing {garment_type}")
+                details = covered(recipe.garment.details)
+                if details:
+                    clauses.append(details)
                 if recipe.garment.fabric:
                     clauses.append(f"{recipe.garment.fabric} fabric")
             cam = recipe.camera

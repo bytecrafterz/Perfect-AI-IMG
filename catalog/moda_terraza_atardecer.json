@@ -108,5 +108,6 @@
     "last_shown_at": null
   },
   "enabled": true,
-  "_note": "Este look se autoriza tal cual. Mientras COVERAGE_POLICY=full el compilador neutraliza la exposicion; al desactivarla se renderiza como esta escrito."
+  "_note": "Retenido mientras COVERAGE_POLICY este activa. El vestido lleva tirantes finos y espalda descubierta, que es exposicion real y no un detalle que se pueda tapar reescribiendo el texto. El look se conserva tal cual: al relajar la politica en el traspaso vuelve exactamente como esta escrito.",
+  "requires_coverage_off": true
 }
