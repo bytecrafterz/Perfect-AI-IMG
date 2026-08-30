@@ -127,3 +127,38 @@ def test_identity_is_locked_in_every_look(look: LookRecipe) -> None:
     acceptable, and least likely to be reported."""
     locked = {a.value for a in look.locks}
     assert {"face", "body_proportions", "skin_tone"} <= locked
+
+
+# -- covers -----------------------------------------------------------------
+
+
+def test_a_cover_url_is_only_offered_when_the_file_exists() -> None:
+    """Every look declares a cover_image whether or not one was produced.
+
+    A truthiness check on the FIELD emitted an <img> pointing at a 404 -
+    twenty-one broken image icons on the style screen, which is the first
+    thing she sees after uploading a photo. The template already falls back to
+    her own photograph, which is a better placeholder than anything generic;
+    it simply never ran.
+    """
+    from app.catalog import Proposal
+
+    look = next(l for l in _real_looks() if l.cover_image)
+    proposal = Proposal(look=look, score=1.0, reason="")
+    url = proposal.public()["cover"]
+
+    expected = CATALOG_DIR / "covers" / Path(look.cover_image).name
+    if expected.exists():
+        assert url == f"/covers/{expected.name}"
+    else:
+        assert url is None, "a cover URL was offered for a file that is not there"
+
+
+def test_withheld_looks_have_no_cover_on_disk() -> None:
+    """Generating a cover for a withheld look would create exactly the image
+    the coverage policy exists to avoid, and commit it to the repository."""
+    for look in _real_looks():
+        if not look.requires_coverage_off or not look.cover_image:
+            continue
+        path = CATALOG_DIR / "covers" / Path(look.cover_image).name
+        assert not path.exists(), f"{look.id} is withheld but has a cover at {path}"

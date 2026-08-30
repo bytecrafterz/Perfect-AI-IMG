@@ -105,14 +105,31 @@ class Proposal:
     score: float
     reason: str
 
+    def _cover_url(self) -> str | None:
+        """The cover's URL, or None when no file was ever produced."""
+        if not self.look.cover_image:
+            return None
+        from app.config import settings
+
+        name = Path(self.look.cover_image).name
+        if not (Path(settings.catalog_dir) / "covers" / name).exists():
+            return None
+        return f"/covers/{name}"
+
     def public(self) -> dict:
         return {
             "id": self.look.id,
             "name": self.look.name,
             "category": self.look.category,
-            "cover": f"/covers/{Path(self.look.cover_image).name}"
-            if self.look.cover_image
-            else None,
+            # The FILE, not just the field. Every look declares a cover_image
+            # whether or not one was ever produced, so a truthiness check on
+            # the field emitted an <img> pointing at a 404 - twenty-one broken
+            # image icons on the style screen, which is the first thing she
+            # sees after uploading.
+            #
+            # The template already falls back to her own photograph, which is
+            # a better placeholder than anything generic; it simply never ran.
+            "cover": self._cover_url(),
             "reason": self.reason,
         }
 
