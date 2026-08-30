@@ -290,9 +290,14 @@ async def test_quota_exhaustion_is_not_retried(tmp_path: Path) -> None:
 
     Ordinary throttling is worth retrying. The daily free allocation running
     out is not - it returns at 00:00 UTC and no amount of backoff hurries it.
-    429 is in RETRYABLE_STATUS, so without special-casing error 4006 every
+    429 is in RETRYABLE_STATUS, so without special-casing error 3036 every
     request for the rest of the day would spend three attempts and the full
     backoff to re-learn the same fact.
+
+    The code is 3036, verified against Cloudflare's error table. An earlier
+    draft used 4006, which does not appear in that table at all - the check
+    would have matched nothing and the retry storm would have happened
+    anyway, which is precisely the failure this test exists to prevent.
     """
     calls = {"n": 0}
 
@@ -303,7 +308,7 @@ async def test_quota_exhaustion_is_not_retried(tmp_path: Path) -> None:
             json={
                 "success": False,
                 "errors": [
-                    {"code": 4006, "message": "you have used up your daily free allocation of 10000 neurons"}
+                    {"code": 3036, "message": "You have used up your daily free allocation of 10,000 neurons."}
                 ],
             },
         )
@@ -328,7 +333,12 @@ async def test_ordinary_throttling_is_still_retried(tmp_path: Path) -> None:
     def responder(_request: httpx.Request) -> httpx.Response:
         calls["n"] += 1
         if calls["n"] == 1:
-            return httpx.Response(429, json={"success": False, "errors": [{"code": 971, "message": "slow down"}]})
+            # 3040 "Out of capacity" - a different 429 entirely, and one that
+            # must keep its retry or a busy minute becomes a failed session.
+            return httpx.Response(
+                429,
+                json={"success": False, "errors": [{"code": 3040, "message": "Out of capacity"}]},
+            )
         return _Recorder._ok(_request)
 
     rec = _Recorder(responder)
@@ -363,11 +373,15 @@ def _entries() -> list[dict]:
     return json.loads((root / "providers.json").read_text(encoding="utf-8"))["providers"]
 
 
-def test_only_the_apache_licensed_model_is_configured() -> None:
-    """FLUX.2-klein-4B is Apache 2.0 and permits commercial use. klein-9B and
-    flux-2-dev are NON-COMMERCIAL, and this is paid client work - so a
-    well-meaning upgrade to the bigger model would be a licence breach, not a
-    quality improvement.
+def test_only_the_permissively_licensed_model_is_configured() -> None:
+    """The 4B weights are Apache 2.0; klein-9B and flux-2-dev are
+    NON-COMMERCIAL. This is paid client work, so a well-meaning upgrade to the
+    bigger model would be a licence breach rather than a quality improvement,
+    and it would be invisible until someone asked the right question.
+
+    This asserts the weight licence only. Use of Cloudflare's HOSTED endpoint
+    is additionally governed by BFL's Terms of Service, which the model page
+    links for the 9B as well - so this test is a floor, not a clearance.
     """
     for entry in _entries():
         if entry.get("adapter") != "cloudflare":

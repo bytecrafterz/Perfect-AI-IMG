@@ -15,19 +15,33 @@ rather than billing you. Verified against the pricing page rather than assumed.
     final    1024x1024 + 1 reference = 109.6 neurons  ->   91/day
     a session (6 previews + 3 finals) = 517 neurons   ->  ~19 sessions/day
 
-WHY THE 4B AND NOT THE 9B
-Licence, and it is not close. FLUX.2-klein-4B is Apache 2.0 - "fully open,
-released for commercial use" on the official model card. FLUX.2-klein-9B is
-released under a NON-COMMERCIAL licence, as is flux-2-dev. This is paid client
-work, so the 9B is unusable here however much better it looks. Do not "upgrade"
-the model string without re-reading its licence.
+WHY THE 4B AND NOT THE 9B - AND AN OPEN LICENCE QUESTION
+The WEIGHTS differ decisively: FLUX.2-klein-4B is Apache 2.0 on its Hugging
+Face model card, "released for commercial use", while klein-9B and flux-2-dev
+are NON-COMMERCIAL. So the 9B is unusable here however much better it looks,
+and the model string must not be "upgraded" without re-reading the licence.
+
+But note carefully what that does and does not settle. Apache 2.0 governs the
+downloadable weights. Using Cloudflare's HOSTED endpoint is governed by
+Cloudflare's terms plus Black Forest Labs' Terms of Service, which is the only
+thing Cloudflare's model page actually links under "Terms and License" - it
+does not mention Apache 2.0, and it links the SAME ToS for the non-commercial
+9B. So the permissive weight licence is necessary but not sufficient evidence.
+
+BEFORE DELIVERING PAID CLIENT WORK ON THIS, read the commercial-use clause of
+https://bfl.ai/legal/terms-of-service directly. That check has not been done.
 
 WHAT IT ACTUALLY DOES
 It is an instruct-edit model in the Kontext family, not SD-style img2img: it
-takes up to four reference images and a prompt that may address them by index.
-Cloudflare's own description is close to the client's brief - change the
-background, lighting or pose "without accidentally changing the face of your
-model".
+takes up to four reference images and a prompt that may address them by index
+("take the subject of image 1 and style it like image 0").
+
+Cloudflare documents the mechanism and NOT the quality of identity
+preservation. A widely repeated line about changing background and pose
+"without accidentally changing the face of your model" is community framing
+that appears nowhere in Cloudflare's or BFL's documentation - do not treat it
+as a guarantee, and do not repeat it to the client. Whether her face survives
+is a question for a test on her actual photographs.
 
 THE CONSTRAINT THAT MATTERS
     All input images must be smaller than 512x512.
@@ -67,12 +81,23 @@ CLOUDFLARE_BASE_URL = "https://api.cloudflare.com"
 #: Every input image must be strictly under this on both axes.
 MAX_INPUT_SIDE = 511
 
-#: Cloudflare answers 429 both for ordinary rate limiting and for the daily
-#: free allocation running out. The first is worth retrying; the second is not
-#: worth retrying until tomorrow, and 429 is in RETRYABLE_STATUS - so without
-#: naming it, every request for the rest of the day would cost three attempts
-#: and the full backoff to re-discover the same thing.
-QUOTA_MARKERS = ("4006", "daily free allocation", "out of neurons")
+#: Cloudflare answers 429 for at least two different situations, and they want
+#: opposite handling:
+#:
+#:    3036  "You have used up your daily free allocation of 10,000 neurons."
+#:          Gone until 00:00 UTC. Retrying cannot help.
+#:    3040  "Out of capacity." Transient. Retrying is exactly right.
+#:
+#: 429 is in RETRYABLE_STATUS, so without separating these, an exhausted
+#: allocation would cost three attempts and the full backoff on every request
+#: for the rest of the day to re-learn the same fact - while a genuine
+#: capacity blip must keep its retry or a busy minute becomes a failed session.
+#:
+#: The code was verified against Cloudflare's error table. An earlier draft of
+#: this adapter used 3036's near neighbour 4006, which does not appear in that
+#: table at all: the quota check would have matched nothing and the retry
+#: storm would have happened anyway.
+QUOTA_MARKERS = ("3036", "daily free allocation", "used up your daily")
 
 
 class CloudflareProvider(ImageProvider):
