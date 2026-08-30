@@ -359,6 +359,22 @@ class Store:
             ).fetchone()
         return float(row["total"])
 
+    def costs_since(self, since: float) -> list[dict]:
+        """Every priced call since `since`, for rehydrating the ledger.
+
+        The daily cap is only real if it survives a restart. The Ledger is an
+        in-memory accumulator that starts empty, so without this the $10/day
+        limit resets every time the process comes up - and the watchdog is
+        configured to restart it up to 999 times.
+        """
+        with self.connect() as db:
+            rows = db.execute(
+                "SELECT session_id, kind, provider_id, usd, detail, at"
+                " FROM costs WHERE at>=? ORDER BY at",
+                (since,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
     def spend_summary(self) -> dict[str, float]:
         now = time.time()
         return {

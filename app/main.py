@@ -45,8 +45,9 @@ from app.compile.compiler import PromptCompiler
 from app.config import settings
 from app.contracts.common import Attribute
 from app.contracts.selections import Selections
+from app.gate import backends
 from app.gate.backends import FaceBackend
-from app.gate.gate import Gate
+from app.gate.gate import Gate, resolve_strict
 from app.gate.judge import VisualJudge
 from app.images import UnsupportedImage, destroy, store_upload
 from app.ledger import BudgetExceeded, Ledger
@@ -113,16 +114,22 @@ class Services:
             if settings.has_language_model
             else None
         )
+        # Strict means an unmeasurable check blocks the image.  Turning it on
+        # while a check genuinely cannot run discards everything, so it is
+        # resolved from the profile AND the installed capabilities together -
+        # see resolve_strict.  Overridable with STRICT_GATE for the day this
+        # judgement is wrong.
+        strict, self.strict_blocked_by = resolve_strict(
+            self.profile,
+            backends.detect_capabilities(settings.models_dir),
+            settings.strict_gate,
+        )
         self.gate = Gate(
             profile=self.profile,
             thresholds=settings.thresholds,
             models_dir=settings.models_dir,
             judge=judge,
-            # Strict only when identity can actually be verified.  Otherwise
-            # every image would be discarded as unmeasurable and the app would
-            # appear broken - so it runs, and says loudly that it is not
-            # verifying identity.  It is never silently upgraded to a pass.
-            strict=self.profile.can_check_identity,
+            strict=strict,
         )
         self.analyser = build_analyser(
             api_key=settings.anthropic_api_key, model=settings.analyser_model
@@ -135,6 +142,11 @@ class Services:
             per_day_usd=settings.caps.per_day_usd,
             balance_floor_usd=settings.caps.balance_floor_usd,
         )
+        # Load today's spend back in, or the daily cap is fiction: the ledger
+        # is an in-memory accumulator, so without this it starts at zero on
+        # every boot - under a watchdog configured to restart 999 times, which
+        # means the "$10 per day" limit could be re-earned all afternoon.
+        self.ledger.rehydrate(self.store.costs_since(time.time() - 86_400))
         self.orchestrator = Orchestrator(
             settings=settings,
             router=self.router,
@@ -154,6 +166,10 @@ class Services:
         out = list(settings.degraded_modes())
         out.extend(self.provider_report.messages_es())
         out.extend(self.gate.status_es())
+        # Why unknowns are not blocking. Without this the gate silently runs
+        # permissive and the only clue is a line in every report.
+        for reason in self.strict_blocked_by:
+            out.append(f"Modo no estricto: {reason}")
         if self.auth.is_open:
             out.append(
                 "ACCESS_TOKEN no configurada: cualquiera con la direccion puede entrar"

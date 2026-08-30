@@ -39,13 +39,26 @@ EXPECTED = {
 }
 
 POSE_EXPORT = """\
-  Exportado desde ultralytics. Se instala en una maquina cualquiera, se
-  exporta una vez y se copia el .onnx - NO hace falta ultralytics (ni torch)
-  en el servidor, que es justo lo que mantiene la imagen pequena en ARM:
+  Exportado desde ultralytics. Se exporta UNA vez y se copia el .onnx: ni
+  ultralytics ni torch tienen que quedarse en el servidor, que es lo que
+  mantiene la imagen pequena en ARM.
 
-    pip install ultralytics
-    python -c "from ultralytics import YOLO; YOLO('yolov8n-pose.pt').export(format='onnx', opset=12)"
-    cp yolov8n-pose.onnx {target}
+  No hace falta otra maquina. Se puede instalar en un directorio aparte y
+  borrarlo despues, sin tocar el interprete de la aplicacion. Windows con el
+  Python portable (que no tiene venv) - probado, tarda unos minutos y ocupa
+  ~1.1 GB temporales:
+
+    set TMP=C:\\temp\\poseexport
+    python -m pip install --target %TMP%\\lib ultralytics
+    python -c "import sys,os; sys.path.insert(0, r'%TMP%\\lib'); os.chdir(r'%TMP%'); \\
+               from ultralytics import YOLO; YOLO('yolov8n-pose.pt').export(format='onnx', opset=12)"
+    copy %TMP%\\yolov8n-pose.onnx {target}
+    rmdir /s /q %TMP%
+
+  El sys.path.insert es necesario: el Python embebido usa un ._pth en modo
+  aislado e ignora PYTHONPATH, asi que --target por si solo no basta.
+
+  Resultado esperado: 12.9 MB, opset 12.
 """
 
 

@@ -56,6 +56,61 @@ SCORE_WEIGHTS: dict[str, float] = {
 }
 
 
+def resolve_strict(
+    profile: IdentityProfile,
+    capabilities: CVCapabilities,
+    policy: str = "auto",
+) -> tuple[bool, list[str]]:
+    """Decide whether unmeasurable checks should block, and say why not.
+
+    This used to be `strict = profile.can_check_identity`, which coupled the
+    whole gate to one field and set a trap: building an identity centroid
+    flipped strict on, and strict discards on ANY unknown - so the moment
+    somebody installed insightface and enrolled her face, every image would
+    have been discarded because proportions were still unmeasurable.  The
+    symptom would have looked like the install breaking the app, and the
+    obvious response - uninstall it - would have been exactly wrong.
+
+    The honest rule is narrower: block on unknowns only when every check we
+    hold a reference for can actually be measured.  A reference without the
+    capability to use it is the definition of a check that cannot run.
+
+    Returns (strict, reasons_it_is_not).  The reasons are shown to her rather
+    than logged, because "not verifying" is a fact about her photographs and
+    not an implementation detail.
+    """
+    policy = (policy or "auto").strip().lower()
+    if policy in {"on", "true", "1", "strict"}:
+        return True, []
+    if policy in {"off", "false", "0"}:
+        return False, ["STRICT_GATE=off: las comprobaciones no verificadas no bloquean"]
+
+    blocked: list[str] = []
+    if profile.can_check_identity and not capabilities.identity_available:
+        blocked.append(
+            "hay referencia de identidad pero falta insightface o buffalo_l"
+        )
+    if profile.can_check_proportions and not capabilities.proportions_available:
+        blocked.append(
+            "hay linea base de proporciones pero falta onnxruntime o el modelo de pose"
+        )
+    if profile.can_check_skin and not capabilities.face_detector_available:
+        blocked.append("hay referencia de piel pero no hay detector de caras")
+
+    # No references at all is not strictness, it is an empty profile.  Blocking
+    # everything because nothing has been enrolled would be technically
+    # consistent and useless.
+    has_any_reference = (
+        profile.can_check_identity
+        or profile.can_check_proportions
+        or profile.can_check_skin
+    )
+    if not has_any_reference:
+        return False, ["el perfil no tiene ninguna referencia todavia"]
+
+    return (not blocked), blocked
+
+
 class Gate:
     def __init__(
         self,

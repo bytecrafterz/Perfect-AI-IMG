@@ -111,6 +111,33 @@ class Ledger:
             self.balance_usd -= usd
         return entry
 
+    def rehydrate(self, rows: list[dict]) -> int:
+        """Load already-recorded spend so the caps survive a restart.
+
+        Without this the daily cap is fiction: `entries` starts empty on every
+        boot, so day_total() is 0 and the $10/day limit resets each time the
+        process comes up - under a watchdog set to restart it 999 times.
+
+        Balance is deliberately NOT decremented here. These calls were already
+        paid for; replaying them would double-count against the prepaid
+        balance and refuse spending that is genuinely affordable.
+        """
+        added = 0
+        for row in rows:
+            self.entries.append(
+                Entry(
+                    at=float(row["at"]),
+                    session_id=str(row["session_id"]),
+                    kind=str(row["kind"]),
+                    provider_id=str(row["provider_id"]),
+                    usd=float(row["usd"]),
+                    detail=str(row.get("detail") or ""),
+                )
+            )
+            added += 1
+        self.entries.sort(key=lambda e: e.at)
+        return added
+
     # -- views -------------------------------------------------------------
 
     def session_total(self, session_id: str) -> float:

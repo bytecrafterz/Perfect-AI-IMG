@@ -267,6 +267,17 @@ class Settings:
     #: Note this is separate from, and does not substitute for, the consent
     #: procedure already agreed for intimate work. Turning this off widens the
     #: styling range; it does not settle that question.
+    #: Whether an unmeasurable check blocks the image.
+    #:
+    #:   auto  block only when every check we hold a reference for can
+    #:         actually be measured (the safe default - see resolve_strict)
+    #:   on    always block on unknowns.  Correct for production once the CV
+    #:         stack is complete; discards everything before that.
+    #:   off   never block on unknowns.  Records them and shows a banner.
+    strict_gate: str = field(
+        default_factory=lambda: (_env("STRICT_GATE", "auto") or "auto").lower()
+    )
+
     coverage_policy: str = field(
         default_factory=lambda: (_env("COVERAGE_POLICY", "full") or "full").lower()
     )

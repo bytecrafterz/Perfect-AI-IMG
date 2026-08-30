@@ -446,6 +446,28 @@ class Orchestrator:
         )
         return finals
 
+    def _afford(self, state, usd: float, what: str) -> bool:
+        """Whether this specific call still fits inside the caps.
+
+        run_previews and run_finals each call ledger.check() once, with an
+        ESTIMATE, before their stage begins. Everything after that only
+        record()s - and record() just appends. So the repair loop and the
+        silent retry, which are exactly the paths that fire when things are
+        going badly, spent without ever asking again. Measured overrun was up
+        to 2.9x the session cap.
+
+        Checking here rather than at record() is deliberate: record() runs
+        AFTER the provider call, so refusing there would decline to log money
+        already spent, which is worse than not checking at all.
+        """
+        try:
+            self._ledger.check(session_id=state.id, additional_usd=usd)
+            return True
+        except BudgetExceeded as exc:
+            self._bus.publish(state.id, EventKind.ERROR, detail=exc.message_es())
+            print(f"[estudio] tope alcanzado antes de {what}: {exc}")
+            return False
+
     async def _one_final(
         self, state: SessionState, candidate: Candidate
     ) -> FinalImage | None:
@@ -473,6 +495,9 @@ class Orchestrator:
             guidance=repro.get("guidance"),  # type: ignore[arg-type]
             strength=0.35,
         )
+
+        if not self._afford(state, provider.descriptor.cost_per_call_usd, "la foto final"):
+            return None
 
         async with self._generation_sem:
             try:
@@ -589,6 +614,9 @@ class Orchestrator:
                 strength=0.85,
             )
 
+            if not self._afford(state, provider.descriptor.cost_per_call_usd, "la reparacion"):
+                break
+
             async with self._generation_sem:
                 try:
                     repair = await provider.inpaint(repair_request)
@@ -634,6 +662,9 @@ class Orchestrator:
             steps=30,
             strength=0.35,
         )
+        if not self._afford(state, provider.descriptor.cost_per_call_usd, "el reintento"):
+            return None
+
         async with self._generation_sem:
             try:
                 result = await provider.generate(request)

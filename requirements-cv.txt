@@ -15,7 +15,25 @@
 onnxruntime==1.20.1
 opencv-python-headless==4.11.0.86
 scikit-image==0.25.0
-insightface==0.7.3
+
+# insightface is NOT pinned here on purpose - see below. Everything above
+# installs from wheels on Windows with no compiler:
+#     pip install --only-binary=:all: -r requirements-cv.txt
+#
+# That alone gives you the two checks that matter most:
+#     proportions  the anti-slimming baseline   (onnxruntime + pose model)
+#     hands        where generators fail most    (same requirement)
+#
+# insightface adds identity ("is this actually her?") and the face box the
+# skin check needs. It is separate because 0.7.3 publishes NO Windows wheel -
+# PyPI has only a source distribution, which compiles Cython and needs MSVC
+# build tools this server does not have. Wheels exist for 0.2.1, 1.0 and
+# 1.0.1, but 1.0.x is not API-compatible with the FaceAnalysis usage in
+# app/gate/backends.py, so it is not a drop-in bump.
+#
+# Until that is resolved the gate reports identity and skin_tone as UNKNOWN,
+# which is honest and does not block - see resolve_strict in app/gate/gate.py.
+#     pip install insightface==0.7.3     # needs a compiler
 
 # Models are downloaded by scripts/fetch_models.py, not vendored:
 #   buffalo_l         face detection + ArcFace recognition  (insightface)
