@@ -192,3 +192,44 @@ def test_health_is_honest_about_what_is_not_running(client: TestClient) -> None:
     assert payload["identity_verification"] is False
     assert payload["strict_gate"] is False
     assert payload["warnings"]
+
+
+def test_her_home_screen_is_not_a_diagnostic_dump() -> None:
+    """The create screen once showed every warning the system had.
+
+    On a working install that was seven lines under a red "Aviso técnico"
+    heading, naming insightface, buffalo_l, centroides and MODO NO ESTRICTO -
+    none of which the client can act on, and all of which read as "broken".
+    She asked what the error was. There was no error.
+
+    A client who cannot follow a numbered list will not parse a dependency
+    name, and an app that cries wolf on its home screen gets distrusted when
+    it eventually has something real to say.
+    """
+    import app.main as main
+
+    hers = main.services.warnings_for_her()
+    technical = main.services.warnings()
+
+    assert len(hers) <= 2, f"her screen should be quiet, got {len(hers)}"
+    forbidden = (
+        "insightface", "buffalo_l", "onnxruntime", "centroide", "ESTRICTO",
+        "providers.json", "API_KEY", "ACCESS_TOKEN", "modelo de pose",
+    )
+    for message in hers:
+        for word in forbidden:
+            assert word.lower() not in message.lower(), (
+                f"technical term {word!r} leaked onto her screen: {message!r}"
+            )
+    # ...and none of it is lost - whoever maintains this still sees everything.
+    assert len(technical) >= len(hers)
+
+
+def test_she_is_still_told_when_the_photos_are_not_real() -> None:
+    """The quiet screen must not become a silent one. Sending a placeholder to
+    a client believing it is a photograph is the failure this guards."""
+    import app.main as main
+
+    if main.services.provider_report.using_mock:
+        hers = main.services.warnings_for_her()
+        assert any("no estoy generando fotos de verdad" in w for w in hers)

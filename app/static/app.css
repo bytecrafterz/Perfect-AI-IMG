@@ -184,6 +184,10 @@ input[type=file] { display: none; }
   font-size: 14px; color: var(--muted);
 }
 .notice.bad { border-left-color: var(--danger); }
+/* A note, not an alarm. What she sees is advice - "revisalas tu antes de
+   usarlas" - and rendering it in the same red as a failure taught her to
+   distrust an app that was working perfectly. */
+.notice.warn { border-left-color: var(--warn, #c8a24a); }
 .notice strong { color: var(--text); }
 
 .stat { display: flex; justify-content: space-between; padding: 12px 0;

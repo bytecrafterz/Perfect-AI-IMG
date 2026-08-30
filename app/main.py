@@ -178,6 +178,51 @@ class Services:
             out.append("El catalogo esta vacio: no hay estilos que ofrecer")
         return out
 
+    def warnings_for_her(self) -> list[str]:
+        """What SHE needs to know, in her words. Usually nothing.
+
+        The full list is for whoever maintains this and belongs on Ajustes.
+        Putting it on her home screen produced seven lines of jargon under a
+        red heading - insightface, buffalo_l, centroide, MODO NO ESTRICTO -
+        none of which she can act on and all of which read as "it is broken".
+        The app was working perfectly at the time.
+
+        Two things genuinely change what she receives, and both are said
+        without naming a single library:
+
+          the pictures are not real     she must not send a placeholder to a
+                                        client believing it is a photograph
+          they are not fully checked    the promise of this product is that
+                                        the result respects her body, and
+                                        right now that cannot be confirmed
+
+        Everything else - which package is missing, which flag is off - is our
+        problem, not hers.
+        """
+        out: list[str] = []
+
+        if self.provider_report.using_mock:
+            out.append(
+                "Ahora mismo no estoy generando fotos de verdad, solo ejemplos "
+                "de prueba. No las uses como si fueran tuyas."
+            )
+
+        unverified = [
+            name
+            for name, ready in (
+                ("que salgas tu", self.profile.can_check_identity),
+                ("tus proporciones", self.profile.can_check_proportions),
+            )
+            if not ready
+        ]
+        if unverified and not self.gate.strict:
+            out.append(
+                "Todavia no puedo comprobar automaticamente "
+                + " ni ".join(unverified)
+                + ". Las fotos se generan igual, pero revisalas tu antes de usarlas."
+            )
+        return out
+
 
 services = Services()
 
@@ -284,7 +329,8 @@ async def crear(request: Request) -> Response:
         {
             "owner": settings.owner_name,
             "recent": services.store.gallery(limit=8, kind="final"),
-            "warnings": services.warnings(),
+            # Hers, not the diagnostic dump - see warnings_for_her.
+            "warnings": services.warnings_for_her(),
             "tab": "crear",
         },
     )

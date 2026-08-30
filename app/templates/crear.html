@@ -6,13 +6,12 @@
 <p class="muted">Sube una foto y te preparo opciones.</p>
 
 {% if warnings %}
-  {# A half-configured system announces itself rather than quietly producing
-     worse work. She should never be the one to discover it. #}
-  <div class="notice bad">
-    <strong>Aviso técnico</strong>
-    <ul style="margin:8px 0 0 16px; padding:0;">
-      {% for warning in warnings %}<li>{{ warning }}</li>{% endfor %}
-    </ul>
+  {# Only what changes what SHE receives, in her words - see
+     Services.warnings_for_her. The technical list lives on Ajustes: this
+     used to show all of it, and seven lines about insightface and centroides
+     under a red heading read as "broken" while the app worked perfectly. #}
+  <div class="notice warn">
+    {% for warning in warnings %}<p style="margin:0 0 6px;">{{ warning }}</p>{% endfor %}
   </div>
 {% endif %}
 
