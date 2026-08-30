@@ -306,7 +306,32 @@ class Gate:
                 attribute=Attribute.SKIN_TONE,
                 detail="el perfil no tiene referencia de piel",
             )
-        measured = backends.skin_patches(rgb)
+        # Without a face detector there are no real skin boxes, only three
+        # fixed rectangles guessing where a face and two arms usually are.  On
+        # a clothed or full-length photo those rectangles land on coat and
+        # background, and the number they produce is not a skin measurement at
+        # all.
+        #
+        # Measured against her own reference set - the very photos the
+        # reference is the mean of - that fallback fails 6 of 13.  On other
+        # real photos of her it failed 10 of 10.  Left as a FAIL it discards
+        # every final she pays for, and the failure is indistinguishable from
+        # the generator genuinely altering her skin.
+        #
+        # So it reports UNKNOWN, which is what the check honestly is here.
+        # The same principle as everywhere else in this gate: a check that
+        # cannot run has not passed - and it has not failed either.  UNKNOWN
+        # is recorded, surfaced, and blocks in strict mode.  Installing a face
+        # detector turns this back into a real measurement.
+        if not self.capabilities.face_detector_available:
+            return Check(
+                name="skin_tone",
+                outcome=CheckOutcome.UNKNOWN,
+                attribute=Attribute.SKIN_TONE,
+                detail="sin detector de caras: no se puede medir la piel de forma fiable",
+            )
+
+        measured = backends.skin_patches(rgb, self._face_boxes(rgb))
         distance = backends.delta_e76(measured, np.asarray(self.profile.skin_lab))
         threshold = self.thresholds.skin_delta_e
         return Check(
@@ -317,6 +342,19 @@ class Gate:
             attribute=Attribute.SKIN_TONE,
             detail="" if distance <= threshold else "el tono de piel ha cambiado",
         )
+
+    def _face_boxes(self, rgb: np.ndarray) -> list[tuple[float, float, float, float]] | None:
+        """Real face boxes when a detector can give them, else None.
+
+        None makes skin_patches fall back to its fixed rectangles, which is
+        only reached when a detector exists but found no face - a different
+        situation from having no detector at all.
+        """
+        try:
+            boxes = self._face.face_boxes(rgb)
+        except Exception:  # noqa: BLE001 - a detector that errors is no detector
+            return None
+        return boxes or None
 
     def _check_hands(self, image_path: str | Path) -> tuple[Check, list[Defect]]:
         """Locate the hands, and flag the ones we are not confident about.

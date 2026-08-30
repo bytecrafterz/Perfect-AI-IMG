@@ -26,7 +26,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.config import settings  # noqa: E402
-from app.contracts.provider import GenerationRequest, Tier  # noqa: E402
+from app.contracts.provider import Capability, GenerationRequest, Tier  # noqa: E402
 from app.providers.base import ProviderError  # noqa: E402
 from app.providers.loader import build_registry  # noqa: E402
 
@@ -80,6 +80,63 @@ async def check_one(provider) -> bool:
     if missing:
         print(f"  AVISO: al registro de reproduccion le falta {missing}")
         print("         sin eso, la foto final no puede derivarse de la elegida")
+
+    return await _check_image_to_image(provider, descriptor, result.image_path)
+
+
+async def _check_image_to_image(provider, descriptor, seed_image: str) -> bool:
+    """The call that actually runs in production, and the one a text-only
+    probe cannot see.
+
+    Every look in the catalog routes in_place_edit, so with a source photo the
+    router demands IMAGE_TO_IMAGE and every real generation takes this path.
+    Checking only text-to-image proves the key and the account and nothing
+    about the work.
+
+    It matters because on fal these are separate endpoints, not one endpoint
+    with a mode flag. Posting an image to the text-to-image path returns 200
+    and ignores the image, so the failure is not an error - it is a convincing
+    photograph of somebody who is not her.
+
+    Reuses the image the previous call just produced, so this costs one
+    generation and needs nothing prepared.
+    """
+    if Capability.IMAGE_TO_IMAGE not in descriptor.capabilities:
+        print("  i2i: no declarado, no se prueba")
+        return True
+
+    print("  i2i: probando la ruta imagen-a-imagen (la que se usa de verdad)...")
+    request = GenerationRequest(
+        prompt="the same woman, wearing a dark wool coat, same face and body",
+        negative_prompt="different person, distorted anatomy",
+        width=512,
+        height=640,
+        seed=12345,
+        steps=4,
+        source_image_path=seed_image,
+        strength=0.55,
+    )
+    try:
+        result = await provider.generate(request)
+    except ProviderError as exc:
+        print(f"  i2i FALLO: {exc}")
+        print("")
+        print("  Que mirar:")
+        print("   * 404 -> el endpoint i2i no existe con ese nombre.")
+        print("     Corrige 'i2i_model' en providers.json. En fal el camino")
+        print("     imagen-a-imagen es distinto del de texto-a-imagen.")
+        print("   * 422 -> el endpoint existe pero espera otros campos")
+        print("   * Si este proveedor no hace i2i, quita 'i2i' de sus")
+        print("     capabilities para que el router deje de elegirlo.")
+        return False
+    except Exception as exc:  # noqa: BLE001
+        print(f"  i2i FALLO INESPERADO: {type(exc).__name__}: {exc}")
+        return False
+
+    print(f"  i2i OK  {result.elapsed_s:.1f}s  -> {result.image_path}")
+    print("  COMPRUEBALO A OJO: la salida debe parecerse a la entrada.")
+    print("  Si es una persona distinta, el endpoint ha ignorado la imagen")
+    print("  y esta generando desde cero - que es el fallo que esto busca.")
     return True
 
 

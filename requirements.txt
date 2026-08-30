@@ -36,7 +36,7 @@ tenacity==9.0.0
 # --- language models ---------------------------------------------------------
 # Imported lazily.  The app boots, and the whole pipeline runs on the mock
 # provider, without this installed or configured.
-anthropic==0.42.0
+anthropic==1.2.0
 
 # --- tests -------------------------------------------------------------------
 pytest==8.3.4

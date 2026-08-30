@@ -47,6 +47,17 @@ class CVCapabilities:
         return self.insightface and self.face_model
 
     @property
+    def face_detector_available(self) -> bool:
+        """Whether skin can be sampled from a real face rather than guessed.
+
+        Same requirement as identity today, because the detector arrives with
+        insightface.  Kept separate because they are different questions: the
+        skin check needs a BOX, not an embedding, and if a lighter detector is
+        ever added this is the flag that should follow it.
+        """
+        return self.insightface and self.face_model
+
+    @property
     def proportions_available(self) -> bool:
         return self.onnxruntime and self.pose_model
 
@@ -343,6 +354,42 @@ class FaceBackend:
         vector = np.asarray(largest.normed_embedding, dtype=np.float32)
         norm = float(np.linalg.norm(vector))
         return vector / norm if norm else vector
+
+    def face_boxes(self, rgb: np.ndarray) -> list[tuple[float, float, float, float]]:
+        """Detected faces as relative (x0, y0, x1, y1), largest first.
+
+        Relative rather than pixels because skin_patches works in fractions of
+        the frame, and the gate inspects images at several sizes.
+
+        Returns an empty list when there is a detector but no face - which is
+        a real answer, and different from having no detector at all.
+        """
+        self._ensure()
+        image = (rgb * 255.0).astype(np.uint8)[:, :, ::-1]  # RGB float -> BGR uint8
+        faces = self._app.get(image)  # type: ignore[union-attr]
+        if not faces:
+            return []
+        h, w = rgb.shape[:2]
+        boxes: list[tuple[float, float, float, float]] = []
+        for face in sorted(
+            faces,
+            key=lambda f: float((f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1])),
+            reverse=True,
+        ):
+            x0, y0, x1, y1 = (float(v) for v in face.bbox)
+            # Inset. An ArcFace box includes hair and background at the edges,
+            # and those would pull the mean away from skin - which is the whole
+            # thing being measured.
+            dx, dy = (x1 - x0) * 0.20, (y1 - y0) * 0.20
+            boxes.append(
+                (
+                    max(0.0, (x0 + dx) / w),
+                    max(0.0, (y0 + dy) / h),
+                    min(1.0, (x1 - dx) / w),
+                    min(1.0, (y1 - dy) / h),
+                )
+            )
+        return boxes
 
     @staticmethod
     def cosine(a: np.ndarray, b: np.ndarray) -> float:

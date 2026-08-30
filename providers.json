@@ -23,6 +23,7 @@
       "adapter": "fal",
       "id": "fal.flux-schnell",
       "model": "fal-ai/flux/schnell",
+      "i2i_model": "fal-ai/flux/schnell/image-to-image",
       "api_key_env": "FAL_API_KEY",
       "tiers": ["preview"],
       "capabilities": ["t2i", "i2i"],
@@ -32,7 +33,7 @@
       "prompt_dialect": "natural_verbose",
       "params": { "num_inference_steps": 4 },
       "enabled": true,
-      "notes": "Preview tier. Four steps, cheap and fast - it exists to give her something real to choose between, not to be the final photograph."
+      "notes": "Preview tier. Four steps, cheap and fast - it exists to give her something real to choose between, not to be the final photograph. NOTE: on fal, text-to-image and image-to-image are separate endpoints for this model, not one endpoint with a mode flag - hence i2i_model. Every look routes in_place_edit, so in practice the i2i path is the one that runs. VERIFY IT WITH check_provider.py BEFORE A REAL SESSION: if that path is wrong the call fails loudly, which is the point, but it fails."
     },
     {
       "adapter": "fal",

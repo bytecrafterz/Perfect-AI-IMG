@@ -135,6 +135,40 @@ class Caps:
     balance_floor_usd: float = 0.00
 
 
+def _malformed_key_warnings() -> list[str]:
+    """Catch an API key that was pasted with a trailing comment.
+
+    load_dotenv strips whitespace and quotes but not a `#`, so
+
+        FAL_API_KEY=abc123      # or REPLICATE_API_TOKEN
+
+    yields the key "abc123      # or REPLICATE_API_TOKEN". It is not empty, so
+    every "is the key set?" check passes, the provider registers as configured,
+    and the failure arrives as a 401 on the first paid call - which reads as a
+    rejected key rather than a malformed one, and sends you to the billing page
+    instead of the file.
+
+    Cheap to detect, so detect it. A real key from either service is one token
+    with no spaces.
+    """
+    out: list[str] = []
+    for name in ("ANTHROPIC_API_KEY", "FAL_API_KEY", "REPLICATE_API_TOKEN"):
+        value = os.environ.get(name, "")
+        if not value:
+            continue
+        if "#" in value:
+            out.append(
+                f"{name} contiene '#': parece que se pego un comentario en la "
+                "misma linea. Los comentarios van en su propia linea del .env"
+            )
+        elif value != value.strip() or " " in value or "	" in value:
+            out.append(
+                f"{name} contiene espacios: probablemente sobra texto al final "
+                "de la linea en el .env"
+            )
+    return out
+
+
 @dataclass(frozen=True)
 class Settings:
     # -- identity ----------------------------------------------------------
@@ -301,6 +335,7 @@ class Settings:
         worse results.
         """
         missing: list[str] = []
+        missing.extend(_malformed_key_warnings())
         if not self.has_language_model:
             missing.append(
                 "ANTHROPIC_API_KEY no configurada: el analisis de foto y el "

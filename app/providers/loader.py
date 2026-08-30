@@ -137,6 +137,7 @@ def _build_one(
         return FalProvider(
             api_key=api_key,
             inpaint_model=entry.get("inpaint_model"),
+            i2i_model=entry.get("i2i_model"),
             **common,
         )
 

@@ -253,8 +253,21 @@ CATALOG_DIR=C:/estudio/catalog
 
 # Optional but strongly recommended:
 ANTHROPIC_API_KEY=<key>
-FAL_API_KEY=<key>          # or REPLICATE_API_TOKEN
+FAL_API_KEY=<key>
 ```
+
+**No trailing comments on a value.** The parser strips whitespace and quotes,
+but not a `#` and everything after it, so
+
+```ini
+# WRONG - do not copy this line
+FAL_API_KEY=abc123          # or REPLICATE_API_TOKEN
+```
+
+sets the key to `abc123          # or REPLICATE_API_TOKEN`. That is not empty,
+so the provider registers as configured and then fails authentication on every
+paid call - which reads as a rejected key rather than a malformed one. Put
+comments on their own line. The app checks for this at startup and says so.
 
 **The `DATA_DIR` trap.** `.env.example` documents the Docker values
 (`DATA_DIR=/srv/data`, `CATALOG_DIR=/srv/catalog`) directly below the Windows

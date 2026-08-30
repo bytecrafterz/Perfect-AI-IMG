@@ -56,11 +56,24 @@ class FalProvider(ImageProvider):
         quality_prior: dict[str, float] | None = None,
         extra_params: dict | None = None,
         inpaint_model: str | None = None,
+        i2i_model: str | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._id = provider_id
         self._model = model
         self._inpaint_model = inpaint_model
+        #: Separate endpoint for image-to-image, where the model needs one.
+        #:
+        #: On fal a model is not one endpoint with a mode switch: flux schnell
+        #: text-to-image and flux schnell image-to-image are DIFFERENT paths.
+        #: Posting an image_url to the text-to-image path does not fail - the
+        #: endpoint accepts the request and ignores the image, so a job meant
+        #: to edit her photo silently returns an invented stranger that looks
+        #: plausible on the screen and is wrong in the only way that matters.
+        #:
+        #: None means this model serves image-to-image on its own endpoint,
+        #: which is true of the edit models (kontext).
+        self._i2i_model = i2i_model
         self._tiers = tiers
         self._capabilities = capabilities
         self._cost = cost_per_call_usd
@@ -104,7 +117,30 @@ class FalProvider(ImageProvider):
 
     async def generate(self, request: GenerationRequest) -> GenerationResult:
         body = self._build_body(request)
-        return await self._call(self._model, body, request, kind="generate")
+        return await self._call(self._endpoint_for(request), body, request, kind="generate")
+
+    def _endpoint_for(self, request: GenerationRequest) -> str:
+        """Which fal path this request belongs on.
+
+        Refusing is deliberate. The alternative - posting the image to the
+        text-to-image path anyway - is the worst available outcome: it returns
+        200, it costs money, and it produces a photograph of somebody else.
+        A loud failure here is caught by check_provider.py for a fraction of a
+        cent; the silent one is caught by the client noticing it is not her.
+        """
+        if not request.source_image_path:
+            return self._model
+        if self._i2i_model:
+            return self._i2i_model
+        if Capability.IMAGE_TO_IMAGE not in self._capabilities:
+            raise ProviderError(
+                self._id,
+                "este modelo no hace imagen-a-imagen",
+                retryable=False,
+            )
+        # Declares i2i and names no separate endpoint: the model serves both
+        # from one path. True of the edit models.
+        return self._model
 
     async def inpaint(self, request: GenerationRequest) -> GenerationResult:
         if Capability.INPAINT not in self._capabilities:
