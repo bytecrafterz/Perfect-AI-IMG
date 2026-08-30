@@ -52,6 +52,38 @@
       "notes": "Final tier. An edit model: it transforms her actual photo rather than inventing a body, which is where her real proportions come from. Hence the instructional dialect - 'change X, keep Y'."
     },
     {
+      "adapter": "cloudflare",
+      "id": "cloudflare.flux-klein-preview",
+      "model": "@cf/black-forest-labs/flux-2-klein-4b",
+      "api_key_env": "CF_API_TOKEN",
+      "account_env": "CF_ACCOUNT_ID",
+      "tiers": ["preview"],
+      "capabilities": ["t2i", "i2i"],
+      "cost_per_call_usd": 0.0,
+      "p50_latency_s": 3.0,
+      "max_resolution": [512, 512],
+      "prompt_dialect": "instructional",
+      "params": {},
+      "enabled": true,
+      "notes": "FREE preview tier. Cloudflare Workers AI gives 10,000 neurons/day at no charge, reset 00:00 UTC, and hard-stops instead of billing. A 512x512 preview with one reference costs 31.4 neurons, so ~318 previews a day. Apache 2.0 model, commercial use permitted - the 4B specifically; klein-9B and flux-2-dev are NON-COMMERCIAL and must not be substituted here. cost_per_call_usd is genuinely 0, which means the bandit's value-per-euro ranking will always favour it; that is intended for the preview tier and is why it is not offered for finals."
+    },
+    {
+      "adapter": "cloudflare",
+      "id": "cloudflare.flux-klein-final",
+      "model": "@cf/black-forest-labs/flux-2-klein-4b",
+      "api_key_env": "CF_API_TOKEN",
+      "account_env": "CF_ACCOUNT_ID",
+      "tiers": ["final"],
+      "capabilities": ["t2i", "i2i", "identity_reference"],
+      "cost_per_call_usd": 0.0,
+      "p50_latency_s": 4.0,
+      "max_resolution": [1024, 1024],
+      "prompt_dialect": "instructional",
+      "params": {},
+      "enabled": false,
+      "notes": "FREE final tier, DISABLED by default and deliberately so. It works, but klein-4B is a distilled 4B model and its output is below fal's flux-pro/kontext, which is what the paid final tier buys. Finals are what she actually keeps and shows people. Enable this only if the budget is truly zero, and tell her plainly that finals are a step down. 1024x1024 costs 109.6 neurons, so ~91 finals a day. NOTE: this adapter cannot inpaint - the endpoint has no mask parameter - so the repair loop will decline rather than silently rewrite the whole photograph."
+    },
+    {
       "adapter": "replicate",
       "id": "replicate.flux-schnell",
       "model": "black-forest-labs/flux-schnell",

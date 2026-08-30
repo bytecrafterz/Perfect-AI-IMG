@@ -132,6 +132,83 @@ class HttpProviderClient:
             retryable=True,
         )
 
+    async def request_multipart(
+        self,
+        method: str,
+        url: str,
+        *,
+        data: dict[str, str] | None = None,
+        files: dict[str, tuple[str, bytes, str]] | None = None,
+        non_retryable_body: tuple[str, ...] = (),
+    ) -> dict:
+        """Same contract as request_json, over multipart/form-data.
+
+        Cloudflare's image endpoints take multipart even when there is no
+        image to send, so JSON is not an option there.
+
+        ``non_retryable_body`` names substrings that make a normally-retryable
+        status permanent. A daily quota that resets at midnight answers 429,
+        which is in RETRYABLE_STATUS - so without this, exhausting the free
+        allocation costs three attempts and the full backoff on every single
+        request for the rest of the day, to re-learn something already known.
+        """
+        # httpx chooses the encoding from whether `files` is non-empty: with
+        # text fields alone it sends application/x-www-form-urlencoded, which
+        # Cloudflare's image endpoints reject. They want multipart even when
+        # there is no image, so when there are no files the text fields are
+        # passed AS files with filename=None - httpx then emits them as plain
+        # multipart fields and the encoding is right either way.
+        fields = dict(data or {})
+        parts: dict = dict(files or {})
+        if not parts:
+            parts = {k: (None, str(v).encode("utf-8")) for k, v in fields.items()}
+            fields = {}
+
+        last: Attempt | None = None
+
+        for attempt in range(1, self._max_attempts + 1):
+            try:
+                response = await self._client.request(
+                    method, url, data=fields, files=parts
+                )
+            except httpx.TimeoutException as exc:
+                last = Attempt(None, f"timeout: {exc}", retryable=True)
+            except httpx.HTTPError as exc:
+                last = Attempt(None, f"network: {exc}", retryable=True)
+            else:
+                if response.status_code < 400:
+                    try:
+                        return response.json()
+                    except ValueError as exc:
+                        raise ProviderError(
+                            self._provider_id,
+                            f"respuesta no es JSON: {exc}",
+                            retryable=False,
+                        ) from exc
+
+                detail = _short_body(response)
+                retryable = response.status_code in RETRYABLE_STATUS
+                if retryable and any(m in detail for m in non_retryable_body):
+                    retryable = False
+                last = Attempt(response.status_code, detail, retryable)
+
+                if not retryable:
+                    raise ProviderError(
+                        self._provider_id,
+                        f"HTTP {response.status_code}: {detail}",
+                        retryable=False,
+                    )
+
+            if attempt < self._max_attempts:
+                await asyncio.sleep(_backoff(attempt))
+
+        assert last is not None
+        raise ProviderError(
+            self._provider_id,
+            f"agotados {self._max_attempts} intentos - {last.detail}",
+            retryable=True,
+        )
+
     async def download(self, url: str, destination: Path) -> Path:
         """Fetch a generated image to disk.
 

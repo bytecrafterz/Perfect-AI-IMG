@@ -141,6 +141,25 @@ def _build_one(
             **common,
         )
 
+    if adapter == "cloudflare":
+        from app.providers.cloudflare import CloudflareProvider
+
+        # Needs an account id as well as a token - the account is in the URL
+        # path, not a header. Skipping loudly beats a 404 on the first call.
+        account = env.get(str(entry.get("account_env", "CF_ACCOUNT_ID")), "").strip()
+        if not account:
+            report.skipped.append(
+                (provider_id, f"falta {entry.get('account_env', 'CF_ACCOUNT_ID')}")
+            )
+            return None
+
+        return CloudflareProvider(
+            api_key=api_key,
+            account_id=account,
+            i2i_model=entry.get("i2i_model"),
+            **common,
+        )
+
     if adapter == "replicate":
         from app.providers.replicate import ReplicateProvider
 
