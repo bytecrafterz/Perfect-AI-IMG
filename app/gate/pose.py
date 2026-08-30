@@ -61,6 +61,21 @@ class Pose:
 
     keypoints: dict[str, Keypoint]
     box_confidence: float
+    #: height / width of the ORIGINAL frame.
+    #:
+    #: Keypoint x is normalised against image width and y against image height,
+    #: which is right for bounding boxes and wrong for lengths: a horizontal
+    #: distance comes out in units of width and a vertical one in units of
+    #: height. Every ratio in measure() divides a mostly-horizontal distance
+    #: (shoulder width, hip width) by a mostly-vertical one (torso length), so
+    #: without this the answer moves with the frame's shape.
+    #:
+    #: Measured, not theorised: padding one of her photos to 4:5 with black
+    #: bars - not one body pixel altered - moved shoulder_torso_ratio by -33%
+    #: against a 6% threshold. The anti-slimming check would have accused the
+    #: generator of the exact thing it exists to prevent, and the accusation
+    #: would have looked entirely credible.
+    aspect: float = 1.0
 
     def get(self, name: str) -> Keypoint | None:
         kp = self.keypoints.get(name)
@@ -72,11 +87,28 @@ class Pose:
             return None
         return ((ka.x + kb.x) / 2, (ka.y + kb.y) / 2)
 
+    def span(self, p: tuple[float, float], q: tuple[float, float]) -> float:
+        """Isotropic distance between two normalised points.
+
+        Same correction as distance(), for the callers that work with
+        midpoints rather than named keypoints. It exists so there is ONE place
+        that knows y needs scaling: torso_length and height_in_heads each did
+        their own raw hypot, and torso_length is the denominator of every
+        ratio in measure(), so it carried the error into all of them.
+        """
+        return float(np.hypot(p[0] - q[0], (p[1] - q[1]) * self.aspect))
+
     def distance(self, a: str, b: str) -> float | None:
+        """Isotropic distance, in units of image WIDTH.
+
+        dy is scaled by the frame aspect so both axes share one unit. Which
+        unit does not matter - every consumer uses these as ratios against
+        torso length - but that they MATCH matters entirely.
+        """
         ka, kb = self.get(a), self.get(b)
         if ka is None or kb is None:
             return None
-        return float(np.hypot(ka.x - kb.x, ka.y - kb.y))
+        return float(np.hypot(ka.x - kb.x, (ka.y - kb.y) * self.aspect))
 
 
 # ---------------------------------------------------------------------------
@@ -229,7 +261,13 @@ def decode_pose_output(
         for name, (kx, ky, kc) in zip(KEYPOINT_NAMES, raw):
             nx, ny = box.to_normalised(float(kx), float(ky))
             keypoints[name] = Keypoint(x=nx, y=ny, confidence=float(kc))
-        poses.append(Pose(keypoints=keypoints, box_confidence=float(row[4])))
+        poses.append(
+            Pose(
+                keypoints=keypoints,
+                box_confidence=float(row[4]),
+                aspect=box.original_height / box.original_width,
+            )
+        )
 
     # Largest person first: in her photos the subject is the biggest thing in
     # the frame, and a passer-by must never define her proportions.
@@ -257,7 +295,7 @@ def torso_length(pose: Pose) -> float | None:
     hips = pose.midpoint("left_hip", "right_hip")
     if shoulders is None or hips is None:
         return None
-    length = float(np.hypot(shoulders[0] - hips[0], shoulders[1] - hips[1]))
+    length = pose.span(shoulders, hips)
     return length if length > 1e-4 else None
 
 
@@ -303,7 +341,7 @@ def measure(pose: Pose) -> BodyProportions:
     ankles = pose.midpoint("left_ankle", "right_ankle")
     nose = pose.get("nose")
     if head_width and ankles is not None and nose is not None:
-        full_height = float(np.hypot(nose.x - ankles[0], nose.y - ankles[1]))
+        full_height = pose.span((nose.x, nose.y), ankles)
         # head_width * ~1.35 approximates head HEIGHT from its width.
         head_height = head_width * 1.35
         if head_height > 1e-4:

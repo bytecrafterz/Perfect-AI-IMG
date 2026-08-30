@@ -85,28 +85,48 @@ def resolve_strict(
     if policy in {"off", "false", "0"}:
         return False, ["STRICT_GATE=off: las comprobaciones no verificadas no bloquean"]
 
+    # A check reports UNKNOWN when EITHER half is missing: the reference it
+    # compares against, or the capability that measures it.  Strict makes any
+    # UNKNOWN discard the image, so strict is only safe when NEITHER half is
+    # missing anywhere.
+    #
+    # Getting this half-right is worse than not doing it.  An earlier version
+    # only asked "reference present but capability missing", which reads as the
+    # careful question and is exactly backwards for the live profile here: it
+    # holds a skin reference and nothing else, so with insightface installed
+    # that version returned strict=True and NO reasons - while identity and
+    # proportions were still unmeasurable.  Every image discarded, immediately
+    # after an install meant to improve things.
     blocked: list[str] = []
-    if profile.can_check_identity and not capabilities.identity_available:
-        blocked.append(
-            "hay referencia de identidad pero falta insightface o buffalo_l"
-        )
-    if profile.can_check_proportions and not capabilities.proportions_available:
-        blocked.append(
-            "hay linea base de proporciones pero falta onnxruntime o el modelo de pose"
-        )
-    if profile.can_check_skin and not capabilities.face_detector_available:
-        blocked.append("hay referencia de piel pero no hay detector de caras")
 
-    # No references at all is not strictness, it is an empty profile.  Blocking
-    # everything because nothing has been enrolled would be technically
-    # consistent and useless.
-    has_any_reference = (
-        profile.can_check_identity
-        or profile.can_check_proportions
-        or profile.can_check_skin
+    def needs(name: str, has_reference: bool, has_capability: bool, missing: str) -> None:
+        if has_reference and has_capability:
+            return
+        if not has_reference and not has_capability:
+            blocked.append(f"{name}: no hay referencia ni con que medirla")
+        elif not has_reference:
+            blocked.append(f"{name}: no hay referencia en el perfil")
+        else:
+            blocked.append(f"{name}: {missing}")
+
+    needs(
+        "identidad",
+        profile.can_check_identity,
+        capabilities.identity_available,
+        "falta insightface o buffalo_l",
     )
-    if not has_any_reference:
-        return False, ["el perfil no tiene ninguna referencia todavia"]
+    needs(
+        "proporciones",
+        profile.can_check_proportions,
+        capabilities.proportions_available,
+        "falta onnxruntime o el modelo de pose",
+    )
+    needs(
+        "piel",
+        profile.can_check_skin,
+        capabilities.face_detector_available,
+        "no hay detector de caras",
+    )
 
     return (not blocked), blocked
 
@@ -438,6 +458,31 @@ class Gate:
         except ModelUnavailable as exc:
             return (
                 Check(name="hands", outcome=CheckOutcome.UNKNOWN, detail=str(exc)),
+                [],
+            )
+
+        if not found:
+            # Zero hands located is not two good hands.
+            #
+            # This only became reachable when the pose model was installed:
+            # before that the check returned UNKNOWN because the model was
+            # missing, and the empty-result path never ran. With the model
+            # present it fell through the loop below with worst still at its
+            # 1.0 initial value and reported PASS - a perfect score - on 11 of
+            # her 13 photos, where the model finds a person but no wrists.
+            #
+            # A close-up with no hands in frame lands here too, and reporting
+            # UNKNOWN for it is right rather than merely safe: we genuinely
+            # cannot say anything about hands we cannot see. In strict mode
+            # that blocks, which is the conservative direction - and strict
+            # already requires a complete profile and a complete CV stack.
+            return (
+                Check(
+                    name="hands",
+                    outcome=CheckOutcome.UNKNOWN,
+                    threshold=self.thresholds.hand_confidence,
+                    detail="no se ha localizado ninguna mano",
+                ),
                 [],
             )
 

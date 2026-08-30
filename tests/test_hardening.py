@@ -47,12 +47,19 @@ def test_enrolling_a_face_does_not_brick_the_gate() -> None:
     Proportions would still have been unmeasurable, so every image would have
     been discarded, immediately after an install that was supposed to improve
     things. The obvious response, uninstalling, would have been exactly wrong.
+
+    This test first asserted strict=True here, which was my own error and the
+    corrected logic caught it: an identity reference makes IDENTITY
+    measurable, and says nothing about proportions or skin. Both of those
+    still return UNKNOWN with no reference, and in strict mode any UNKNOWN
+    discards. So enrolling one thing must not arm the gate for the others.
     """
     profile = IdentityProfile(centroid=[0.1] * 512)
     strict, why = resolve_strict(profile, _caps(insightface=True, face_model=True))
-    assert strict is True, "identity enrolled and measurable - strict is correct here"
+    assert strict is False, "identity alone leaves proportions and skin unknown"
+    assert any("proporciones" in r for r in why)
 
-    # ...but add a proportions baseline with no pose model and it must back off
+    # Adding a proportions baseline without a pose model must not help either.
     profile.proportions.shoulder_torso_ratio = 0.86
     strict, why = resolve_strict(profile, _caps(insightface=True, face_model=True))
     assert strict is False
