@@ -70,8 +70,28 @@ function OurNginx {
 }
 
 function OurUvicorn {
-    @(Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
+    # Command line first - it is the precise answer when it is readable.
+    $byCommand = @(Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
         Where-Object { $_.CommandLine -and $_.CommandLine -match 'uvicorn' -and $_.CommandLine -match 'app.main' })
+    if ($byCommand.Count -gt 0) { return $byCommand }
+
+    # Win32_Process returns a NULL CommandLine for processes this session may
+    # not inspect, and an unelevated shell frequently cannot read its own.
+    # The match then silently finds nothing, so -Restart reported "uvicorn ya
+    # estaba en marcha" and did nothing at all - the app kept serving stale
+    # code through every deploy, which is a very quiet way to lose an
+    # afternoon.
+    #
+    # Owning the configured port IS the identity here, so fall back to that,
+    # narrowed to our own interpreter so a stray listener is never killed.
+    $owner = Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue |
+        Select-Object -First 1 -ExpandProperty OwningProcess
+    if (-not $owner) { return @() }
+    @(Get-CimInstance Win32_Process -Filter "ProcessId=$owner" -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.Name -eq 'python.exe' -and
+            (-not $_.ExecutablePath -or $_.ExecutablePath.StartsWith($Root, 'OrdinalIgnoreCase'))
+        })
 }
 
 # ---------------------------------------------------------------------------

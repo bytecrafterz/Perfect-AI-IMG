@@ -49,7 +49,7 @@ from app.gate import backends
 from app.gate.backends import FaceBackend
 from app.gate.gate import Gate, resolve_strict
 from app.gate.judge import VisualJudge
-from app.images import UnsupportedImage, destroy, store_upload
+from app.images import UnsupportedImage, build_derivatives, destroy, store_upload
 from app.ledger import BudgetExceeded, Ledger
 from app.orchestrator.engine import Orchestrator
 from app.orchestrator.events import EventKind, bus
@@ -473,7 +473,7 @@ async def start_previews(
             bus.publish(state.id, EventKind.ERROR, detail=exc.message_es())
             return
         for candidate in candidates:
-            services.store.add_image(
+            _record_image(
                 image_id=candidate.id,
                 kind="preview",
                 path=candidate.image_path,
@@ -518,7 +518,7 @@ async def start_finals(
             bus.publish(state.id, EventKind.ERROR, detail=exc.message_es())
             return
         for final in finals:
-            services.store.add_image(
+            _record_image(
                 image_id=final.id,
                 kind="final",
                 path=final.image_path,
@@ -777,6 +777,58 @@ async def ajustes(request: Request) -> Response:
 # ---------------------------------------------------------------------------
 
 
+def _derivative(kind: str, name: str) -> Path:
+    """The requested thumbnail, built from the original if it is missing.
+
+    Belt and braces alongside _record_image. Sixty-one images already existed
+    with no derivative when this was found, and an image that displays as a
+    broken icon is indistinguishable, to her, from one that was lost - so it
+    is worth healing rather than only preventing.
+
+    Returns the path either way; _serve raises the 404 if there is genuinely
+    nothing to serve.
+    """
+    safe = Path(name).name
+    path = settings.derivatives_dir / kind / safe
+    if path.exists():
+        return path
+
+    row = services.store.image(Path(safe).stem)
+    original = Path(row.path) if row and row.path else None
+    if original and original.exists():
+        try:
+            build_derivatives(original, settings.derivatives_dir, stem=Path(safe).stem)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[estudio] AVISO: no pude reconstruir {safe}: {exc}")
+    return path
+
+
+def _record_image(**fields) -> None:
+    """Record a generated image AND build its thumbnails.
+
+    These were two separate steps and only uploads ever did both, so every
+    photograph the system produced was stored correctly and displayed as a
+    broken icon: the gallery asks for /media/thumb/<id>.webp and nothing had
+    ever written one.
+
+    Kept together in one function precisely so they cannot drift apart again -
+    the previous arrangement was not a missing call so much as an invitation
+    to forget one.
+    """
+    services.store.add_image(**fields)
+    path = fields.get("path")
+    if not path:
+        return
+    try:
+        build_derivatives(
+            Path(path), settings.derivatives_dir, stem=str(fields["image_id"])
+        )
+    except Exception as exc:  # noqa: BLE001
+        # A thumbnail is a convenience; the photograph is the deliverable.
+        # Failing to shrink it must never lose it.
+        print(f"[estudio] AVISO: sin miniatura para {fields.get('image_id')}: {exc}")
+
+
 def _serve(path: Path) -> FileResponse:
     if not path.exists():
         raise HTTPException(status_code=404, detail="no encontrado")
@@ -788,13 +840,13 @@ def _serve(path: Path) -> FileResponse:
 @app.get("/media/thumb/{name}")
 async def media_thumb(request: Request, name: str) -> FileResponse:
     require_session(request)
-    return _serve(settings.derivatives_dir / "thumb" / Path(name).name)
+    return _serve(_derivative("thumb", name))
 
 
 @app.get("/media/medium/{name}")
 async def media_medium(request: Request, name: str) -> FileResponse:
     require_session(request)
-    return _serve(settings.derivatives_dir / "medium" / Path(name).name)
+    return _serve(_derivative("medium", name))
 
 
 def _is_binned(stem: str) -> bool:

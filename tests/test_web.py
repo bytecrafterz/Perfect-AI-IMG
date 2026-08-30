@@ -233,3 +233,41 @@ def test_she_is_still_told_when_the_photos_are_not_real() -> None:
     if main.services.provider_report.using_mock:
         hers = main.services.warnings_for_her()
         assert any("no estoy generando fotos de verdad" in w for w in hers)
+
+
+def test_generated_photos_get_a_thumbnail_named_by_image_id(tmp_path) -> None:
+    """The gallery asks for /media/thumb/<image_id>.webp.
+
+    build_derivatives named its output after the SOURCE filename, which is
+    correct only because an upload is stored under its own image id. A
+    generated photograph keeps the provider's filename, so the derivative was
+    written as <provider-filename>.webp - the same picture under a name
+    nothing would ever request, and a broken icon for every photo the system
+    produced.
+    """
+    from PIL import Image
+
+    from app.images import build_derivatives
+
+    source = tmp_path / "cloudflare_flux-klein-preview-1788126238945.png"
+    Image.new("RGB", (512, 640), (90, 90, 110)).save(source)
+
+    thumb, medium = build_derivatives(source, tmp_path / "deriv", stem="d8dca256cc5d")
+
+    assert thumb.name == "d8dca256cc5d.webp"
+    assert medium.name == "d8dca256cc5d.webp"
+    assert thumb.exists() and medium.exists()
+
+
+def test_uploads_keep_naming_by_source_stem(tmp_path) -> None:
+    """The default must not change - for an upload the two names coincide,
+    and every existing derivative on disk depends on it."""
+    from PIL import Image
+
+    from app.images import build_derivatives
+
+    source = tmp_path / "a13ca4a1bbf10443_c4a39c.png"
+    Image.new("RGB", (64, 64)).save(source)
+
+    thumb, _ = build_derivatives(source, tmp_path / "deriv")
+    assert thumb.name == "a13ca4a1bbf10443_c4a39c.webp"

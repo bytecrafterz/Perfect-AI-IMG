@@ -120,19 +120,29 @@ def store_upload(
     )
 
 
-def build_derivatives(path: Path, derivatives: Path) -> tuple[Path, Path]:
+def build_derivatives(
+    path: Path, derivatives: Path, *, stem: str | None = None
+) -> tuple[Path, Path]:
     """Small and medium WebP, written once and cached forever.
 
     URLs are immutable, so these can be served with a long cache header and
     never revalidated.
+
+    ``stem`` names the output. It defaults to the SOURCE filename's stem,
+    which is correct only because an upload is stored under its own image id.
+    A generated photograph is not: it keeps the provider's filename, so the
+    gallery asked for /media/thumb/<image_id>.webp while the derivative had
+    been written as <provider-filename>.webp. Same picture, two names, and a
+    broken icon for every photograph the system produced.
     """
     thumb_dir = derivatives / "thumb"
     medium_dir = derivatives / "medium"
     thumb_dir.mkdir(parents=True, exist_ok=True)
     medium_dir.mkdir(parents=True, exist_ok=True)
 
-    thumb_path = thumb_dir / f"{path.stem}.webp"
-    medium_path = medium_dir / f"{path.stem}.webp"
+    name = stem or path.stem
+    thumb_path = thumb_dir / f"{name}.webp"
+    medium_path = medium_dir / f"{name}.webp"
 
     if thumb_path.exists() and medium_path.exists():
         return thumb_path, medium_path
