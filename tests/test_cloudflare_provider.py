@@ -461,3 +461,65 @@ def test_the_free_tier_covers_a_realistic_day() -> None:
         f"only {sessions_per_day:.1f} free sessions/day at the configured "
         f"resolutions - too thin for a working client"
     )
+
+
+# ---------------------------------------------------------------------------
+# the file extension must match the bytes
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "signature,expected",
+    [
+        ("ffd8ffe0", ".jpg"),
+        ("89504e470d0a1a0a", ".png"),
+        ("47494638396100", ".gif"),
+    ],
+)
+def test_the_extension_is_sniffed_not_assumed(signature: str, expected: str) -> None:
+    from app.providers.cloudflare import _suffix_for
+
+    assert _suffix_for(bytes.fromhex(signature) + b"rest") == expected
+
+
+def test_webp_is_recognised() -> None:
+    from app.providers.cloudflare import _suffix_for
+
+    assert _suffix_for(b"RIFF\x00\x00\x00\x00WEBPVP8 ") == ".webp"
+
+
+@pytest.mark.asyncio
+async def test_a_jpeg_response_is_not_written_as_png(tmp_path: Path) -> None:
+    """The failure this closes, and it was a peculiarly quiet one.
+
+    The extension was hardcoded to .png while Cloudflare returns JPEG, so
+    every photograph was served as Content-Type: image/png containing JPEG
+    data. Browsers refuse to render that. The request was a clean 200, the
+    file was intact, and every tool that sniffs content opened it perfectly -
+    so the only symptom was a blank space where the photograph should be, with
+    nothing anywhere reporting an error.
+    """
+    jpeg = bytes.fromhex("ffd8ffe000104a46494600010100000100010000") + b"\xff\xd9"
+    rec = _Recorder(
+        lambda _r: httpx.Response(
+            200, json={"success": True, "result": {"image": base64.b64encode(jpeg).decode()}}
+        )
+    )
+    p = _provider(tmp_path, rec)
+    result = await p.generate(_request())
+    await p.close()
+
+    written = Path(result.image_path)
+    assert written.suffix == ".jpg", f"JPEG bytes written as {written.suffix}"
+    assert written.read_bytes().startswith(b"\xff\xd8\xff")
+
+
+@pytest.mark.asyncio
+async def test_a_png_response_still_gets_png(tmp_path: Path) -> None:
+    """The sniffing must not have broken the ordinary case."""
+    rec = _Recorder()  # the default responder returns a real PNG
+    p = _provider(tmp_path, rec)
+    result = await p.generate(_request())
+    await p.close()
+
+    assert Path(result.image_path).suffix == ".png"

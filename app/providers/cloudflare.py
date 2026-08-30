@@ -280,7 +280,19 @@ class CloudflareProvider(ImageProvider):
             ) from exc
 
         # Returned inline rather than as a URL, so there is no second fetch.
-        destination = self._output_dir / f"{self._id.replace('.', '_')}-{int(time.time()*1000)}.png"
+        #
+        # The EXTENSION MUST MATCH THE BYTES. This was hardcoded to .png and
+        # Cloudflare returns JPEG, so every photograph was served as
+        # Content-Type: image/png containing JPEG data - which browsers refuse
+        # to render. The request was a clean 200 and the picture was simply
+        # blank, which is a peculiarly hard failure to read: nothing is
+        # missing, nothing errors, and the file opens perfectly in any tool
+        # that sniffs content instead of trusting the name.
+        suffix = _suffix_for(raw)
+        destination = (
+            self._output_dir
+            / f"{self._id.replace('.', '_')}-{int(time.time() * 1000)}{suffix}"
+        )
         destination.write_bytes(raw)
 
         return GenerationResult(
@@ -297,6 +309,34 @@ class CloudflareProvider(ImageProvider):
                 "kind": kind,
             },
         )
+
+
+def _suffix_for(raw: bytes) -> str:
+    """The file extension the bytes actually deserve.
+
+    Sniffed from the magic number rather than assumed. The provider is free to
+    return whatever format it likes and has no obligation to announce a
+    change, and getting this wrong fails in a genuinely confusing way: the
+    request is a clean 200, the file is intact, every tool that sniffs content
+    opens it perfectly - and the browser, which trusts the Content-Type
+    derived from the extension, renders nothing at all.
+
+    Written with fromhex rather than escape sequences because this is exactly
+    the sort of constant that gets silently corrupted by one layer of quoting.
+    """
+    signatures = (
+        ("ffd8ff", ".jpg"),
+        ("89504e470d0a1a0a", ".png"),
+        ("47494638", ".gif"),
+    )
+    for hex_prefix, suffix in signatures:
+        if raw.startswith(bytes.fromhex(hex_prefix)):
+            return suffix
+    if raw[:4] == b"RIFF" and raw[8:12] == b"WEBP":
+        return ".webp"
+    # Unrecognised: .png keeps it readable by anything that sniffs, and the
+    # gate will reject it soon enough if it is not an image at all.
+    return ".png"
 
 
 def _downscaled_png(path: Path) -> bytes:
