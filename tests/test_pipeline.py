@@ -188,10 +188,11 @@ def test_previews_stream_one_by_one(settings, look, ir, profile):
     )
     asyncio.run(orchestrator.run_previews(state, count=6))
 
-    queue = orchestrator._bus.channel(state.id)
-    kinds = []
-    while not queue.empty():
-        kinds.append(queue.get_nowait().kind)
+    # Read the session's history rather than draining a shared queue. The bus
+    # used to hand every listener the SAME queue, so reading it here consumed
+    # the events - exactly as a second browser tab did in production, leaving
+    # the first tab waiting for a photograph it would never be told about.
+    kinds = [event.kind for event in orchestrator._bus.history(state.id)]
 
     assert kinds.count(EventKind.PREVIEW_READY) == 6
     assert kinds[0] is EventKind.PREVIEW_STARTED
@@ -383,3 +384,82 @@ def test_ranking_prefers_what_she_keeps(look, ir):
 
     ranked = engine.rank([ignored, loved], ir)
     assert ranked[0].look.id == "loved"
+
+
+# ---------------------------------------------------------------------------
+# The event stream must not be consumed by whoever reads it first
+# ---------------------------------------------------------------------------
+
+
+def test_two_listeners_both_see_every_event():
+    """The bug this closes, and it was invisible from the server side.
+
+    The bus held ONE queue per session and asyncio.Queue delivers each item to
+    exactly one consumer, so a second listener did not observe the session -
+    it stole from the first. With two tabs open, final_ready went to one and
+    finals_done to the other, and the tab holding finals_done showed
+    "Listas - 1 foto" above an empty grid. The photograph existed and was
+    served correctly; it was simply never announced to the page looking at it.
+    """
+    from app.orchestrator.events import EventBus, EventKind
+
+    async def scenario():
+        bus = EventBus()
+
+        async def listen(collected):
+            async for event in bus.subscribe("s1", heartbeat_s=0.05):
+                if event.kind is EventKind.HEARTBEAT:
+                    continue
+                collected.append(event.kind)
+                if event.kind is EventKind.FINALS_DONE:
+                    return
+
+        one, two = [], []
+        tasks = [
+            asyncio.ensure_future(listen(one)),
+            asyncio.ensure_future(listen(two)),
+        ]
+        await asyncio.sleep(0.05)  # let both subscribe
+
+        bus.publish("s1", EventKind.FINAL_READY, url="/media/a.jpg")
+        bus.publish("s1", EventKind.FINALS_DONE, delivered=1)
+        await asyncio.wait_for(asyncio.gather(*tasks), timeout=3)
+        return one, two
+
+    one, two = asyncio.run(scenario())
+    for collected in (one, two):
+        assert EventKind.FINAL_READY in collected, "a listener missed the photograph"
+        assert EventKind.FINALS_DONE in collected
+
+
+def test_a_late_listener_is_told_what_it_missed():
+    """A page that connects a moment after the photograph arrived - or simply
+    reloads - must still learn about it, or it waits forever for something
+    that already happened."""
+    from app.orchestrator.events import EventBus, EventKind
+
+    async def scenario():
+        bus = EventBus()
+        bus.publish("s2", EventKind.FINAL_READY, url="/media/a.jpg")
+        bus.publish("s2", EventKind.FINALS_DONE, delivered=1)
+
+        seen = []
+        async for event in bus.subscribe("s2", heartbeat_s=0.05):
+            if event.kind is EventKind.HEARTBEAT:
+                continue
+            seen.append(event.kind)
+            if event.kind is EventKind.FINALS_DONE:
+                break
+        return seen
+
+    seen = asyncio.run(scenario())
+    assert seen == [EventKind.FINAL_READY, EventKind.FINALS_DONE]
+
+
+def test_reading_the_history_does_not_consume_it():
+    from app.orchestrator.events import EventBus, EventKind
+
+    bus = EventBus()
+    bus.publish("s3", EventKind.FINAL_READY, url="/media/a.jpg")
+    assert len(bus.history("s3")) == 1
+    assert len(bus.history("s3")) == 1, "history was consumed by reading it"
