@@ -189,8 +189,24 @@ class CloudflareProvider(ImageProvider):
         width = min(request.width, self._max_resolution[0])
         height = min(request.height, self._max_resolution[1])
 
+        # THIS MODEL HAS NO negative_prompt PARAMETER. Its documented inputs
+        # are prompt, input_image_0..3, guidance, width, height and seed -
+        # nothing else. So a negative prompt handed to this adapter was simply
+        # dropped, and every preview went out with the entire coverage and
+        # anatomy negative list silently discarded. The compiler was doing its
+        # job; the words never left the building.
+        #
+        # The only channel available is the positive prompt, so they are
+        # folded in as an explicit prohibition. Trimmed, because a distilled
+        # four-step model given a hundred comma-separated negatives attends to
+        # none of them - the ones kept are the failures the client actually
+        # reported.
+        prompt = request.prompt
+        if request.negative_prompt:
+            prompt = f"{prompt}. Avoid entirely: {_condense(request.negative_prompt)}"
+
         fields: dict[str, str] = {
-            "prompt": request.prompt,
+            "prompt": prompt,
             "width": str(width),
             "height": str(height),
         }
@@ -309,6 +325,31 @@ class CloudflareProvider(ImageProvider):
                 "kind": kind,
             },
         )
+
+
+#: How many negative terms to fold into the positive prompt.
+#:
+#: A four-step distilled model given a long list attends to none of it, so
+#: this keeps the head of the list - which the compiler already orders with
+#: the identity and anatomy terms first.
+_MAX_FOLDED_NEGATIVES = 14
+
+
+def _condense(negative: str) -> str:
+    """The most important negatives, as a short phrase.
+
+    Deduplicated preserving order, because the compiler concatenates several
+    lists and the same term appearing three times spends the budget without
+    adding anything.
+    """
+    seen: list[str] = []
+    for raw in negative.split(","):
+        term = raw.strip()
+        if term and term.lower() not in {s.lower() for s in seen}:
+            seen.append(term)
+        if len(seen) >= _MAX_FOLDED_NEGATIVES:
+            break
+    return ", ".join(seen)
 
 
 def _suffix_for(raw: bytes) -> str:

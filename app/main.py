@@ -457,7 +457,11 @@ async def start_previews(
     # Read once, at session start. A preference changed mid-generation must
     # not produce a batch made by two different models.
     state = services.orchestrator.open_session(
-        source_path=path, ir=ir, look=look, selections=parsed
+        source_path=path,
+        ir=ir,
+        look=look,
+        selections=parsed,
+        prefer_quality=services.store.preference("final_quality", "best") == "best",
     )
     services.store.open_session(
         session_id=state.id,

@@ -139,7 +139,16 @@ if (PortBusy 8000) {
         -ArgumentList @(
             '-m','uvicorn','app.main:app',
             '--host','127.0.0.1','--port','8000',
-            '--proxy-headers','--forwarded-allow-ips','127.0.0.1'
+            '--proxy-headers','--forwarded-allow-ips','127.0.0.1',
+            # Her ACCESS_TOKEN travels in the path of /e/<token>, and that
+            # token IS her login. nginx was taught not to log that route, but
+            # uvicorn keeps its OWN access log and was writing the full URL
+            # into uvicorn.out.log - so the nginx rule protected nothing.
+            #
+            # nginx is the front door and logs everything worth logging. A
+            # second copy of the same requests, minus the one exclusion that
+            # matters, is pure liability.
+            '--no-access-log'
         ) `
         -WorkingDirectory $Root -WindowStyle Hidden `
         -RedirectStandardOutput (Join-Path $LogDir 'uvicorn.out.log') `

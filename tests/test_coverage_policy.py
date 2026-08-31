@@ -396,3 +396,59 @@ def test_the_specific_failures_are_named() -> None:
         "extra legs", "fused legs", "misshapen legs", "malformed feet",
     ):
         assert expected in negatives, f"{expected!r} is not in the negative list"
+
+
+def test_a_chip_that_IS_the_exposure_is_dropped_not_restored() -> None:
+    """The hole the audit found, and it was mine.
+
+    cover_recipe_text returns None when a value is exposure and nothing else -
+    "bikini", "encaje", "toalla". The call site read
+    `cover_recipe_text(value) or value`, written to avoid an empty clause, and
+    that fallback put the original straight back: the positive prompt said
+    "wearing bikini" while the negative said "bikini".
+
+    A test asserted the rewrite worked and passed, because it tested the
+    function and not the call site.
+    """
+    from app.compile.compiler import cover_recipe_text
+
+    for value in ("bikini", "conjunto de encaje", "toalla"):
+        assert cover_recipe_text(value) is None
+        # ...and the compiler must therefore emit no garment clause at all.
+    import inspect
+
+    from app.compile.compiler import PromptCompiler
+
+    source = inspect.getsource(PromptCompiler)
+    assert "cover_recipe_text(value) or value" not in source, (
+        "the fallback that reinstates dropped exposure is back"
+    )
+
+
+def test_fabric_is_covered_too() -> None:
+    """Fabric was the one garment field the rewrite never touched, so
+    "encaje transparente" reached the same prompt as "Opaque fabric only"."""
+    from app.compile.compiler import cover_recipe_text
+
+    assert cover_recipe_text("encaje transparente") is None
+    assert cover_recipe_text("lana gruesa") == "lana gruesa"
+
+
+def test_negatives_reach_a_provider_that_cannot_take_them() -> None:
+    """@cf/black-forest-labs/flux-2-klein-4b has NO negative_prompt parameter -
+    its documented inputs are prompt, input_image_0..3, guidance, width,
+    height, seed.
+
+    So the entire coverage and anatomy negative list was silently dropped on
+    every preview. The compiler was doing its job; the words never left the
+    building. They are now folded into the positive prompt, which is the only
+    channel the model has.
+    """
+    from app.providers.cloudflare import _condense
+
+    folded = _condense(
+        "extra fingers, fused fingers, bare shoulders, cleavage, extra fingers"
+    )
+    assert "fused fingers" in folded
+    assert "cleavage" in folded
+    assert folded.count("extra fingers") == 1, "duplicates waste the budget"

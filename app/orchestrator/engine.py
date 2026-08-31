@@ -674,7 +674,13 @@ class Orchestrator:
     async def _retry_final(
         self, state: SessionState, candidate: Candidate
     ) -> tuple[str, QAReport] | None:
-        provider = self._router.provider_for_reproduction(candidate.provider_id)
+        # The retry produces a DELIVERED photograph, so it belongs on the same
+        # tier as the first attempt. Routing it back to the preview provider
+        # was the last surviving path that quietly downgraded a final - and
+        # the one that runs precisely when the first attempt already failed.
+        provider = self._router.provider_for_final(
+            candidate.provider_id, prefer_quality=state.prefer_quality
+        )
         repro = candidate.reproduction
         request = GenerationRequest(
             prompt=str(repro.get("prompt", "")),

@@ -452,7 +452,17 @@ class PromptCompiler:
                 # covered" - and a contradiction the model resolves at random
                 # is exactly the failure the policy exists to prevent.
                 if self._enforce_coverage:
-                    value = cover_recipe_text(value) or value
+                    covered_value = cover_recipe_text(value)
+                    if not covered_value:
+                        # The rewrite removed everything, which means the
+                        # value IS the exposure - "bikini", "encaje",
+                        # "toalla". Falling back to the original here (which
+                        # this line used to do, to avoid an empty clause) put
+                        # it straight back into the prompt: the positive said
+                        # "wearing bikini" while the negative said "bikini".
+                        # Dropping the clause is the whole point.
+                        continue
+                    value = covered_value
                 clauses.append(template.format(value=value))
 
         if look:
@@ -494,8 +504,12 @@ class PromptCompiler:
                 details = covered(recipe.garment.details)
                 if details:
                     clauses.append(details)
-                if recipe.garment.fabric:
-                    clauses.append(f"{recipe.garment.fabric} fabric")
+                # Fabric goes through the rewrite too. It was the one field
+                # that did not, so "encaje transparente y malla" reached the
+                # same prompt as "Opaque fabric only".
+                fabric = covered(recipe.garment.fabric)
+                if fabric:
+                    clauses.append(f"{fabric} fabric")
             cam = recipe.camera
             clauses.append(
                 f"shot on a {cam.focal_mm}mm lens at {cam.aperture}, "

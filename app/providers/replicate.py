@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from urllib.parse import urlparse
 import uuid
 from pathlib import Path
 
@@ -188,7 +189,19 @@ class ReplicateProvider(ImageProvider):
                 retryable=False,
             )
 
-        destination = self._output_dir / f"{self._id.replace('.', '_')}_{uuid.uuid4().hex[:12]}.png"
+        # Suffix from the URL, not assumed. The Cloudflare adapter hardcoded
+        # .png while the service returned JPEG, and browsers refuse to render
+        # a JPEG declared as image/png - a clean 200 and a blank rectangle.
+        # This adapter downloads from a URL, which usually carries the real
+        # extension; _serve derives the media type from the filename, so
+        # getting it wrong here is the same failure by a different route.
+        suffix = Path(urlparse(url).path).suffix.lower()
+        if suffix not in {".png", ".jpg", ".jpeg", ".webp", ".gif"}:
+            suffix = ".png"
+        destination = (
+            self._output_dir
+            / f"{self._id.replace('.', '_')}_{uuid.uuid4().hex[:12]}{suffix}"
+        )
         await self._client.download(url, destination)
 
         return GenerationResult(
