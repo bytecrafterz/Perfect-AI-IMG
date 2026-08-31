@@ -151,11 +151,63 @@ def _malformed_key_warnings() -> list[str]:
     Cheap to detect, so detect it. A real key from either service is one token
     with no spaces.
     """
+    # What each key looks like, so a value in the WRONG SLOT is caught here
+    # rather than as an HTTP 401 an hour later.
+    #
+    # This is not hypothetical. The Cloudflare account id and API token were
+    # pasted into ANTHROPIC_API_KEY and FAL_API_KEY. Every "is it configured?"
+    # check passed, both providers registered as ready, and every call to
+    # either returned 401 - which reads as a billing problem, not a
+    # copy-and-paste one. The gate reported the judge unavailable; the finals
+    # silently produced nothing.
+    shapes: dict[str, tuple[str, str]] = {
+        # name: (test, what it should look like)
+        "ANTHROPIC_API_KEY": ("prefix:sk-ant-", "empieza por 'sk-ant-'"),
+        "FAL_API_KEY": ("contains::", "lleva dos puntos, con el formato id:secreto"),
+        "CF_API_TOKEN": ("minlen:30", "es una cadena larga del panel de Cloudflare"),
+        "CF_ACCOUNT_ID": ("hex:32", "son 32 caracteres hexadecimales"),
+    }
+
+    def wrong_shape(name: str, value: str) -> str | None:
+        rule = shapes.get(name)
+        if not rule:
+            return None
+        test, described = rule
+        kind, _, arg = test.partition(":")
+        if kind == "prefix" and not value.startswith(arg):
+            return described
+        if kind == "contains" and arg not in value:
+            return described
+        if kind == "minlen" and len(value) < int(arg):
+            return described
+        if kind == "hex" and (
+            len(value) != int(arg) or any(c not in "0123456789abcdefABCDEF" for c in value)
+        ):
+            return described
+        return None
+
     out: list[str] = []
-    for name in ("ANTHROPIC_API_KEY", "FAL_API_KEY", "REPLICATE_API_TOKEN"):
+    seen: dict[str, str] = {}
+    for name in (
+        "ANTHROPIC_API_KEY", "FAL_API_KEY", "REPLICATE_API_TOKEN",
+        "CF_API_TOKEN", "CF_ACCOUNT_ID",
+    ):
         value = os.environ.get(name, "")
         if not value:
             continue
+
+        expected = wrong_shape(name, value)
+        if expected:
+            out.append(f"{name} no tiene el formato correcto: {expected}")
+
+        # Two different services never share a credential. If they match, one
+        # of them was pasted into the wrong line.
+        if value in seen:
+            out.append(
+                f"{name} y {seen[value]} tienen el MISMO valor: uno de los dos "
+                "esta en la linea equivocada del .env"
+            )
+        seen[value] = name
         if "#" in value:
             out.append(
                 f"{name} contiene '#': parece que se pego un comentario en la "

@@ -70,9 +70,12 @@ stream.addEventListener('finals_done', (event) => {
   // The one place a failure is ever surfaced: when it could not be recovered
   // silently, she is told plainly rather than quietly given fewer photos.
   if (data.failed) {
-    document.getElementById('notices').innerHTML =
+    // APPEND, never replace. An error event carrying the actual reason
+    // arrives first, and overwriting it here left her - and whoever maintains
+    // this - with "no salieron bien" and nothing whatever to act on.
+    document.getElementById('notices').insertAdjacentHTML('beforeend',
       `<div class="notice bad">${data.failed} no salieron bien y las he descartado.
-       No te las cobro como buenas.</div>`;
+       No te las cobro como buenas.</div>`);
   }
   stream.close();
 });
@@ -81,8 +84,8 @@ stream.addEventListener('error', (event) => {
   try {
     const data = JSON.parse(event.data || '{}');
     if (data.detail) {
-      document.getElementById('notices').innerHTML =
-        `<div class="notice bad">${data.detail}</div>`;
+      document.getElementById('notices').insertAdjacentHTML('beforeend',
+        `<div class="notice bad">${data.detail}</div>`);
     }
   } catch (_) {}
 });

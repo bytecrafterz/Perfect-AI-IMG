@@ -291,6 +291,12 @@ class Orchestrator:
                 )
                 result = await choice.provider.generate(compiled.request)
             except (ProviderError, BudgetExceeded) as exc:
+                # Logged as well as published. The event goes to the browser,
+                # where the finals_done notice promptly overwrites it - so a
+                # provider failure was visible for about a second and left no
+                # trace anywhere. The operator was told "no ha salido bien"
+                # and given nothing to act on.
+                print(f"[estudio] preview fallo en {choice.provider.descriptor.id}: {exc}")
                 self._bus.publish(state.id, EventKind.ERROR, detail=str(exc))
                 return None
 
@@ -515,6 +521,7 @@ class Orchestrator:
             try:
                 result = await provider.generate(request)
             except ProviderError as exc:
+                print(f"[estudio] final fallo en {provider.descriptor.id}: {exc}")
                 self._bus.publish(state.id, EventKind.ERROR, detail=str(exc))
                 return None
 

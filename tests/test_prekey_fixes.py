@@ -312,7 +312,16 @@ def test_malformed_key_is_reported(monkeypatch, value: str) -> None:
     assert "FAL_API_KEY" in warnings[0]
 
 
-@pytest.mark.parametrize("value", ["fal-abc123def456", "sk-ant-api03-XyZ_123"])
+@pytest.mark.parametrize(
+    "value",
+    [
+        # Real fal keys are id:secret. These placeholders were invented before
+        # the shape check existed, and the check correctly rejects them - the
+        # values were wrong, not the rule.
+        "0e6d1f2a-1111-2222-3333-444455556666:9f8e7d6c5b4a3f2e1d0c",
+        "abc123:def456",
+    ],
+)
 def test_a_well_formed_key_is_not_flagged(monkeypatch, value: str) -> None:
     from app.config import _malformed_key_warnings
 
@@ -336,3 +345,54 @@ def test_the_readme_no_longer_teaches_the_broken_format() -> None:
                 continue
             assert "#" not in stripped, f"README teaches an inline comment: {stripped!r}"
         previous = line
+
+
+# ---------------------------------------------------------------------------
+# 5. A credential in the wrong slot must be caught before it costs an hour
+# ---------------------------------------------------------------------------
+
+
+def test_a_cloudflare_token_in_the_fal_slot_is_caught(monkeypatch) -> None:
+    """Exactly what happened, and it cost an afternoon.
+
+    The Cloudflare account id and API token were pasted into
+    ANTHROPIC_API_KEY and FAL_API_KEY. Every "is it configured?" check passed,
+    both providers registered as ready, and every call returned HTTP 401 -
+    which reads as a billing problem rather than a copy-and-paste one. The
+    finals silently produced nothing and the result page said only "no ha
+    salido bien".
+    """
+    from app.config import _malformed_key_warnings
+
+    monkeypatch.setenv("FAL_API_KEY", "cfut" + "x" * 49)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "e80be226a8499b9c98ee561cbfa590dc")
+
+    warnings = " ".join(_malformed_key_warnings())
+    assert "FAL_API_KEY" in warnings
+    assert "ANTHROPIC_API_KEY" in warnings
+
+
+def test_the_same_value_in_two_slots_is_caught(monkeypatch) -> None:
+    """Two different services never share a credential. If they match, one was
+    pasted into the wrong line - which is a likelier mistake than it sounds
+    when both are opaque strings of similar length."""
+    from app.config import _malformed_key_warnings
+
+    same = "abc123:def456"
+    monkeypatch.setenv("FAL_API_KEY", same)
+    monkeypatch.setenv("REPLICATE_API_TOKEN", same)
+
+    warnings = " ".join(_malformed_key_warnings())
+    assert "MISMO valor" in warnings
+
+
+def test_correctly_shaped_keys_pass(monkeypatch) -> None:
+    """The check must not cry wolf on real credentials."""
+    from app.config import _malformed_key_warnings
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-api03-AbCdEf123")
+    monkeypatch.setenv("FAL_API_KEY", "0e6d1f2a-1111:9f8e7d6c5b4a")
+    monkeypatch.setenv("CF_ACCOUNT_ID", "e80be226a8499b9c98ee561cbfa590dc")
+    monkeypatch.setenv("CF_API_TOKEN", "cfut" + "y" * 49)
+
+    assert _malformed_key_warnings() == []
