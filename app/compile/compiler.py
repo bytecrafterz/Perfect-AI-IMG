@@ -170,10 +170,13 @@ def cover_recipe_text(text: str | None) -> str | None:
 #: a failure; it cannot describe the thing that should be there instead, and
 #: samplers respond better to a description than to a prohibition.
 ANATOMY_CLAUSE = (
-    "anatomically correct hands with exactly five fingers on each hand, "
-    "fingers clearly separated and naturally posed; both legs complete and "
-    "correctly proportioned, knees and ankles natural, feet "
-    "fully within the frame or cleanly outside it"
+    "a natural symmetrical face with two clear, correctly aligned eyes of "
+    "matching size, shape and colour, both looking in the same direction, "
+    "with sharp round pupils, defined iris and natural catchlights, eyelids "
+    "and eyelashes intact; anatomically correct hands with exactly five "
+    "fingers on each hand, fingers clearly separated and naturally posed; "
+    "both legs complete and correctly proportioned, knees and ankles natural, "
+    "feet fully within the frame or cleanly outside it"
 )
 
 COVERAGE_CLAUSE = (
@@ -251,6 +254,26 @@ _BASE_NEGATIVES: tuple[str, ...] = (
     # noticed it - "the fingers and legs are inaccurate". A generic
     # "distorted anatomy" is too vague to steer a sampler away from the
     # specific failures, so the specific failures are listed.
+    # Eyes first, because they are the first thing anyone looks at and the
+    # failure the client reported. A face can be right in every other respect
+    # and still be unusable if the eyes are wrong, and unlike a hand it cannot
+    # be hidden by a crop.
+    "misaligned eyes",
+    "asymmetric eyes",
+    "crossed eyes",
+    "lazy eye",
+    "wandering eye",
+    "mismatched pupils",
+    "deformed pupils",
+    "extra pupils",
+    "different coloured eyes",
+    "unequal eye size",
+    "eyes looking in different directions",
+    "missing iris",
+    "blurred eyes",
+    "melted eyes",
+    "distorted eye socket",
+    "malformed eyelids",
     "extra fingers",
     "missing fingers",
     "fused fingers",

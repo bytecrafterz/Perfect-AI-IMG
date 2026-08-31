@@ -110,6 +110,24 @@ class Thresholds:
     #: CIE76 deltaE on cheek and arm patches.
     skin_delta_e: float = 4.0
 
+    #: Eyes. Geometry only - the pose model gives eye CENTRES, so this catches
+    #: an eye placed independently of the face, not an iris that looks wrong.
+    #:
+    #: eye_tilt_deg      how far the eye line may disagree with the ear line.
+    #:                   Heads tilt; eyes tilt WITH them. 12 degrees is well
+    #:                   past any real head pose and well inside the detector's
+    #:                   own noise on a clear face.
+    #: eye_spacing_ratio inter-ocular distance over ear width. Human faces
+    #:                   cluster tightly; this band is deliberately generous
+    #:                   because head rotation compresses the ear line.
+    #: eye_confidence    below this the detector has stopped seeing an eye,
+    #:                   which is itself the signal - the same reasoning as the
+    #:                   wrist check.
+    eye_tilt_deg: float = 12.0
+    eye_spacing_ratio_min: float = 0.30
+    eye_spacing_ratio_max: float = 0.85
+    eye_confidence: float = 0.50
+
     #: SSIM outside the region the request was allowed to touch.  1.0 is
     #: identical; anything below this means the generator changed something
     #: it was not asked to.

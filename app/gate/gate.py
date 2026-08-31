@@ -52,6 +52,10 @@ SCORE_WEIGHTS: dict[str, float] = {
     "sharpness": 1.0,
     "exposure": 0.5,
     "hands": 1.5,
+    # Second only to identity, and above hands. Eyes carry most of the
+    # resemblance, they are the first thing anyone looks at, and unlike a bad
+    # hand they cannot be cropped out of the photograph.
+    "eyes": 2.5,
     "judge": 2.0,
 }
 
@@ -170,6 +174,7 @@ class Gate:
         report.checks.append(self._check_sharpness(rgb))
         report.checks.append(self._check_identity(image_path))
         report.checks.append(self._check_proportions(image_path))
+        report.checks.append(self._check_eyes(image_path))
         hands_check, hand_defects = self._check_hands(image_path)
         report.checks.append(hands_check)
         report.defects.extend(hand_defects)
@@ -195,6 +200,7 @@ class Gate:
         report.checks.append(self._check_identity(image_path))
         report.checks.append(self._check_proportions(image_path))
         report.checks.append(self._check_skin(rgb))
+        report.checks.append(self._check_eyes(image_path))
 
         hands_check, hand_defects = self._check_hands(image_path)
         report.checks.append(hands_check)
@@ -430,6 +436,81 @@ class Gate:
         except Exception:  # noqa: BLE001 - a detector that errors is no detector
             return None
         return boxes or None
+
+    def _check_eyes(self, image_path: str | Path) -> Check:
+        """Are the eyes where a face would put them?
+
+        Geometry only. The pose model gives eye CENTRES, so this catches an
+        eye placed independently of the face - the classic generator failure,
+        and the one the client reported - and says nothing about whether an
+        iris looks right. That is the visual judge's job, and pretending
+        otherwise would mean claiming to check something we cannot see.
+
+        Eyes earn their own check rather than riding along with proportions
+        because they are the first thing anyone looks at, they carry most of
+        the resemblance, and unlike a bad hand they cannot be cropped out.
+        """
+        if not self.capabilities.proportions_available:
+            return Check(
+                name="eyes",
+                outcome=CheckOutcome.UNKNOWN,
+                detail="modelo de pose no instalado",
+            )
+        try:
+            geometry = self._pose.eyes(image_path)
+        except ModelUnavailable as exc:
+            return Check(name="eyes", outcome=CheckOutcome.UNKNOWN, detail=str(exc))
+
+        if not geometry:
+            # One eye visible is normal in profile. Not a failure, and not a
+            # pass either - there is nothing here to compare.
+            return Check(
+                name="eyes",
+                outcome=CheckOutcome.UNKNOWN,
+                detail="no se ven los dos ojos",
+            )
+
+        t = self.thresholds
+        confidence = geometry["confidence"]
+        if confidence < t.eye_confidence:
+            # A mangled eye stops looking like an eye and the detector loses
+            # it. Same signal the wrist check relies on.
+            return Check(
+                name="eyes",
+                outcome=CheckOutcome.FAIL,
+                value=float(confidence),
+                threshold=float(t.eye_confidence),
+                detail="los ojos no se reconocen bien",
+            )
+
+        tilt = geometry.get("tilt_disagreement_deg")
+        if tilt is not None and tilt > t.eye_tilt_deg:
+            return Check(
+                name="eyes",
+                outcome=CheckOutcome.FAIL,
+                value=float(tilt),
+                threshold=float(t.eye_tilt_deg),
+                detail="los ojos no estan alineados con la cara",
+            )
+
+        spacing = geometry.get("spacing_ratio")
+        if spacing is not None and not (
+            t.eye_spacing_ratio_min <= spacing <= t.eye_spacing_ratio_max
+        ):
+            return Check(
+                name="eyes",
+                outcome=CheckOutcome.FAIL,
+                value=float(spacing),
+                threshold=float(t.eye_spacing_ratio_max),
+                detail="la separacion de los ojos no es natural",
+            )
+
+        return Check(
+            name="eyes",
+            outcome=CheckOutcome.PASS,
+            value=float(confidence),
+            threshold=float(t.eye_confidence),
+        )
 
     def _check_hands(self, image_path: str | Path) -> tuple[Check, list[Defect]]:
         """Locate the hands, and flag the ones we are not confident about.

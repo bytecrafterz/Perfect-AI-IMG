@@ -471,6 +471,12 @@ class PoseBackend:
             raise ModelUnavailable("no person found in the image")
         return found[0]
 
+    def eyes(self, path: str | Path) -> dict[str, float] | None:
+        """Eye geometry for the largest person, or None if not both visible."""
+        from app.gate.pose import eye_geometry
+
+        return eye_geometry(self.subject(path))
+
     def proportions(self, path: str | Path):
         from app.gate.pose import measure
 

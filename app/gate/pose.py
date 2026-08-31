@@ -299,6 +299,61 @@ def torso_length(pose: Pose) -> float | None:
     return length if length > 1e-4 else None
 
 
+def eye_geometry(pose: Pose) -> dict[str, float] | None:
+    """What the pose keypoints can honestly say about the eyes.
+
+    COCO-17 gives eye CENTRES, not eye shape - so this catches gross
+    misplacement and asymmetry, and says nothing about whether an iris looks
+    right. That is the visual judge's job. Two different questions, and
+    conflating them would mean claiming to check something we cannot see.
+
+    What it CAN measure, and why each matters:
+
+      tilt        the angle of the eye line against the ear line. Real heads
+                  tilt; eyes tilt WITH the head. A large disagreement between
+                  the two means one eye has been placed independently of the
+                  face, which is the classic generator failure.
+      spacing     inter-ocular distance over ear width. Human faces cluster
+                  tightly here, so a value far outside the range is a face
+                  that has been stretched or had an eye moved.
+      confidence  the lower of the two eye keypoints. A mangled eye stops
+                  looking like an eye, and the detector loses it - the same
+                  signal the wrist check relies on.
+
+    Returns None when the eyes are not both visible, which is a real answer
+    and not a failure: a profile shot legitimately shows one eye.
+    """
+    left, right = pose.get("left_eye"), pose.get("right_eye")
+    if left is None or right is None:
+        return None
+
+    eye_dx = right.x - left.x
+    eye_dy = (right.y - left.y) * pose.aspect
+    spacing = float(np.hypot(eye_dx, eye_dy))
+    if spacing < 1e-6:
+        return None
+
+    out: dict[str, float] = {
+        "spacing": spacing,
+        "confidence": float(min(left.confidence, right.confidence)),
+    }
+
+    eye_angle = float(np.degrees(np.arctan2(eye_dy, eye_dx)))
+    ear_l, ear_r = pose.get("left_ear"), pose.get("right_ear")
+    if ear_l is not None and ear_r is not None:
+        ear_dx = ear_r.x - ear_l.x
+        ear_dy = (ear_r.y - ear_l.y) * pose.aspect
+        ear_width = float(np.hypot(ear_dx, ear_dy))
+        if ear_width > 1e-6:
+            out["spacing_ratio"] = spacing / ear_width
+            ear_angle = float(np.degrees(np.arctan2(ear_dy, ear_dx)))
+            # Signed difference folded to 0..90: the eye line should be
+            # roughly parallel to the ear line whatever way the head is turned.
+            delta = abs(eye_angle - ear_angle) % 180.0
+            out["tilt_disagreement_deg"] = min(delta, 180.0 - delta)
+    return out
+
+
 def measure(pose: Pose) -> BodyProportions:
     """Keypoints -> scale-invariant ratios.
 

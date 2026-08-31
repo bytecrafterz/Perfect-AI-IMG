@@ -43,13 +43,21 @@ is beautiful, you are judging whether it is broken.
 
 Look hard at, in this order:
 
-1. HANDS - finger count, fused or missing fingers, impossible joints. This is the most
-   common failure and the most important thing you check.
-2. LIMBS - extra or missing arms and legs, impossible bends, limbs merging into objects.
-3. ARTEFACTS - warped straight lines, smeared textures, duplicated features, garbled
+1. EYES - the first thing any viewer looks at, and the one defect that cannot be
+   cropped out. Check BOTH eyes individually and then together: are they the same
+   size, shape and colour; is each pupil round, centred and a plausible size; do
+   both look in the SAME direction; are iris and eyelids intact; is either eye
+   smeared, melted, doubled or missing its catchlight?
+   A face can be perfect in every other respect and still be unusable.
+   Note the geometry - eye placement and alignment - is measured numerically, so
+   report what only a viewer can see: how the eyes LOOK.
+2. HANDS - finger count, fused or missing fingers, impossible joints. The most
+   common failure after eyes.
+3. LIMBS - extra or missing arms and legs, impossible bends, limbs merging into objects.
+4. ARTEFACTS - warped straight lines, smeared textures, duplicated features, garbled
    text on signs or clothing.
-4. BACKGROUND - objects that melt into each other, impossible geometry.
-5. REQUEST SATISFACTION - does the image actually show what was asked for?
+5. BACKGROUND - objects that melt into each other, impossible geometry.
+6. REQUEST SATISFACTION - does the image actually show what was asked for?
 
 Do NOT judge these, they are measured numerically elsewhere and your opinion on them
 is not wanted:
@@ -98,6 +106,16 @@ _KIND_MAP = {
     "text": DefectKind.TEXT,
     "background": DefectKind.BACKGROUND,
     "face": DefectKind.FACE,
+    # Eyes are face. That matters: FACE is deliberately NOT repairable,
+    # because repainting a face is how identity drifts, and identity is the
+    # whole product. A bad eye means discard and regenerate - never inpaint
+    # a new eye onto her.
+    "eye": DefectKind.FACE,
+    "eyes": DefectKind.FACE,
+    "ojo": DefectKind.FACE,
+    "ojos": DefectKind.FACE,
+    "pupil": DefectKind.FACE,
+    "iris": DefectKind.FACE,
 }
 
 
