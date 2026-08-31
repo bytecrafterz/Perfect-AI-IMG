@@ -249,10 +249,23 @@ def test_only_chosen_previews_become_finals(settings, look, ir, profile):
     assert kinds.count("preview") == 6
 
 
-def test_final_comes_from_the_same_provider_as_its_preview(settings, look, ir, profile):
-    """PREVIEW FIDELITY.  Routing afresh would hand her a different photograph
-    from the one she picked, which breaks the only promise the two-stage
-    design makes."""
+def test_the_final_uses_the_quality_tier_when_one_exists(settings, look, ir, profile):
+    """This test used to assert the opposite, and the opposite was the bug.
+
+    It required the final to come from the SAME provider as the preview, in
+    the name of preview fidelity. The effect was that finals came from
+    whichever model made the preview - a four-step distilled model chosen for
+    being fast and free - so the paid quality tier was configured, priced, and
+    never once called. Every "final" was a preview at a larger size, and
+    four-step models fail hardest on fingers and the ends of limbs.
+
+    Fidelity is preserved by a different mechanism, asserted in the test
+    below: the chosen preview is passed as the SOURCE IMAGE, so the final is
+    derived from the picture she chose. It is refined by a better model rather
+    than re-rolled by a different one.
+    """
+    from app.contracts.provider import Capability, Tier
+
     ledger = Ledger(per_session_usd=5.0, per_day_usd=20.0)
     orchestrator = build_orchestrator(settings, profile, ledger)
     state = orchestrator.open_session(
@@ -262,8 +275,35 @@ def test_final_comes_from_the_same_provider_as_its_preview(settings, look, ir, p
     chosen = candidates[0]
     asyncio.run(orchestrator.run_finals(state, [chosen.id]))
 
-    final_entries = [e for e in ledger.entries if e.kind == "final"]
-    assert final_entries[0].provider_id == chosen.provider_id
+    used = [e.provider_id for e in ledger.entries if e.kind == "final"]
+    assert used, "no final was produced"
+
+    final_tier = orchestrator._router._registry.candidates(
+        tier=Tier.FINAL, required=(Capability.IMAGE_TO_IMAGE,)
+    )
+    if final_tier:
+        assert used[0] in {p.descriptor.id for p in final_tier}
+    else:
+        # No quality tier configured: fall back to the preview's own provider,
+        # because a slightly worse photograph beats an error.
+        assert used[0] == chosen.provider_id
+
+
+def test_the_free_choice_keeps_the_preview_provider(settings, look, ir, profile):
+    """prefer_quality=False is the "Gratis" setting on the Ajustes screen. It
+    must genuinely avoid the paid tier, or the setting is decorative."""
+    ledger = Ledger(per_session_usd=5.0, per_day_usd=20.0)
+    orchestrator = build_orchestrator(settings, profile, ledger)
+    state = orchestrator.open_session(
+        source_path=None, ir=ir, look=look, selections=Selections(),
+        prefer_quality=False,
+    )
+    candidates = asyncio.run(orchestrator.run_previews(state, count=3))
+    chosen = candidates[0]
+    asyncio.run(orchestrator.run_finals(state, [chosen.id]))
+
+    used = [e.provider_id for e in ledger.entries if e.kind == "final"]
+    assert used[0] == chosen.provider_id
 
 
 def test_finals_are_derived_from_the_chosen_preview(settings, look, ir, profile):

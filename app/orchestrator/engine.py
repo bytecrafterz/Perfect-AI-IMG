@@ -112,6 +112,12 @@ class SessionState:
     finals: list[FinalImage] = field(default_factory=list)
     started_at: float = field(default_factory=time.time)
     plan: BatchPlan | None = None
+    #: Whether finals should go to the paid quality tier.
+    #:
+    #: Held on the session rather than read from settings at use time, so a
+    #: preference changed mid-generation cannot produce a batch where some
+    #: photographs came from one model and some from another.
+    prefer_quality: bool = True
 
 
 class Orchestrator:
@@ -146,12 +152,14 @@ class Orchestrator:
         ir: AttributeIR,
         look: LookRecipe | None,
         selections: Selections,
+        prefer_quality: bool = True,
     ) -> SessionState:
         state = SessionState(
             id=uuid.uuid4().hex[:12],
             source_path=source_path,
             ir=ir,
             look=look,
+            prefer_quality=prefer_quality,
             selections=selections,
         )
         self._sessions[state.id] = state
@@ -478,7 +486,11 @@ class Orchestrator:
         derived from the image she picked rather than from a fresh roll of the
         dice.
         """
-        provider = self._router.provider_for_reproduction(candidate.provider_id)
+        # The QUALITY tier, seeded from the preview she chose - not the model
+        # that happened to make the preview. See Router.provider_for_final.
+        provider = self._router.provider_for_final(
+            candidate.provider_id, prefer_quality=state.prefer_quality
+        )
         repro = candidate.reproduction
 
         request = GenerationRequest(
@@ -598,7 +610,12 @@ class Orchestrator:
             mask_path = await asyncio.to_thread(
                 _write_mask, image_path, worst.bbox, self._settings.images_dir
             )
-            provider = self._router.provider_for_reproduction(candidate.provider_id)
+            # Repair needs INPAINT, which the free preview model does not
+            # have - so every repair silently refused and a flawed hand was
+            # simply delivered. The quality tier can inpaint.
+            provider = self._router.provider_for_final(
+                candidate.provider_id, prefer_quality=state.prefer_quality
+            )
             repair_request = GenerationRequest(
                 prompt=(
                     f"{candidate.slot.describe()}. Repaint only the masked region: "

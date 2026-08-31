@@ -351,3 +351,48 @@ def test_no_visible_look_carries_exposing_wording() -> None:
             if banned in text:
                 offenders.append(f"{look['id']}: {banned}")
     assert offenders == [], f"visible looks still describe exposure: {offenders}"
+
+
+# ---------------------------------------------------------------------------
+# hands and limbs - what the client actually complained about
+# ---------------------------------------------------------------------------
+
+
+def test_anatomy_is_stated_positively_in_every_prompt() -> None:
+    """A negative list can only steer away from a failure. It cannot describe
+    the thing that should be there instead, and samplers respond better to a
+    description than to a prohibition."""
+    from app.compile.compiler import ANATOMY_CLAUSE
+
+    clause = ANATOMY_CLAUSE.lower()
+    assert "five fingers" in clause
+    assert "legs" in clause
+    assert "proportioned" in clause
+
+
+def test_anatomy_survives_with_the_coverage_policy_off() -> None:
+    """Coverage is a temporary client preference; correct hands are not. The
+    two must not share a switch."""
+    import inspect
+
+    from app.compile.compiler import PromptCompiler
+
+    source = inspect.getsource(PromptCompiler)
+    used = [line for line in source.splitlines() if "ANATOMY_CLAUSE" in line]
+    assert used, "ANATOMY_CLAUSE is never used"
+    assert not any("enforce_coverage" in line for line in used), (
+        "anatomy must not be conditional on the coverage policy"
+    )
+
+
+def test_the_specific_failures_are_named() -> None:
+    """"Distorted anatomy" is too vague to steer a sampler away from the
+    particular things that go wrong. The client reported fingers and legs."""
+    from app.compile.compiler import _BASE_NEGATIVES
+
+    negatives = {n.lower() for n in _BASE_NEGATIVES}
+    for expected in (
+        "extra fingers", "fused fingers", "six fingers", "malformed hands",
+        "extra legs", "fused legs", "misshapen legs", "malformed feet",
+    ):
+        assert expected in negatives, f"{expected!r} is not in the negative list"

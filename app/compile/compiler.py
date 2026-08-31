@@ -166,6 +166,16 @@ def cover_recipe_text(text: str | None) -> str | None:
     return ", ".join(kept) if kept else None
 
 
+#: Said positively, in every prompt. A negative list can only steer away from
+#: a failure; it cannot describe the thing that should be there instead, and
+#: samplers respond better to a description than to a prohibition.
+ANATOMY_CLAUSE = (
+    "anatomically correct hands with exactly five fingers on each hand, "
+    "fingers clearly separated and naturally posed; both legs complete and "
+    "correctly proportioned, knees and ankles natural, feet "
+    "fully within the frame or cleanly outside it"
+)
+
 COVERAGE_CLAUSE = (
     "modest full coverage, strictly enforced: a high closed collar fastened to "
     "the base of the throat, covering the neck, collarbones and chest "
@@ -236,12 +246,35 @@ _BASE_NEGATIVES: tuple[str, ...] = (
     "waxy skin",
     "enlarged eyes",
     "altered facial structure",
+    # Hands and the ends of limbs, named in detail on purpose. These are
+    # where few-step models fail first and hardest, and where the client
+    # noticed it - "the fingers and legs are inaccurate". A generic
+    # "distorted anatomy" is too vague to steer a sampler away from the
+    # specific failures, so the specific failures are listed.
     "extra fingers",
     "missing fingers",
     "fused fingers",
+    "webbed fingers",
+    "six fingers",
+    "deformed hands",
     "malformed hands",
+    "mangled hands",
+    "twisted wrist",
+    "extra arms",
+    "extra legs",
     "extra limbs",
+    "missing limb",
+    "fused legs",
+    "bent knee backwards",
+    "deformed knee",
+    "misshapen legs",
+    "disproportionate legs",
+    "malformed feet",
+    "extra toes",
+    "floating limb",
+    "disconnected limb",
     "distorted anatomy",
+    "anatomically incorrect",
     "watermark",
     "text overlay",
     "low resolution",
@@ -475,7 +508,11 @@ class PromptCompiler:
         # ir.locks - so it cannot be dropped by editing an IR, a look or a
         # chip. Turning the policy off is the only way to remove it, and that
         # is a deliberate act in .env rather than a side effect of styling.
-        clauses = [COVERAGE_CLAUSE] if self._enforce_coverage else []
+        # Anatomy always, coverage only under the policy. The negative list
+        # can say what must not appear; only this can say what should.
+        clauses = [ANATOMY_CLAUSE]
+        if self._enforce_coverage:
+            clauses.append(COVERAGE_CLAUSE)
         return clauses + [
             _LOCK_PHRASES[a] for a in ir.locks if a in _LOCK_PHRASES
         ]

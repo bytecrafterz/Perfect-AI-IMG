@@ -186,3 +186,38 @@ class Router:
         picked, which breaks the only promise the two-stage design makes.
         """
         return self._registry.get(provider_id)
+
+    def provider_for_final(
+        self, preview_provider_id: str, *, prefer_quality: bool = True
+    ) -> ImageProvider:
+        """The provider that should produce the finished photograph.
+
+        THIS IS WHY THE PHOTOGRAPHS WERE POOR. Finals used
+        provider_for_reproduction, so they came from whichever model made the
+        PREVIEW - a four-step distilled model chosen for being fast and free.
+        The final tier existed, was priced, was configured, and was never once
+        called. Every "final" was a preview at a larger size, and four-step
+        models fail hardest on exactly what she complained about: fingers and
+        the ends of limbs.
+
+        Fidelity is not given up to fix it. The chosen preview is still passed
+        as the source image, so the final is derived from the picture she
+        actually chose - it is refined by a better model rather than re-rolled
+        by a different one. That is precisely what an edit model is for.
+
+        Falls back to the preview's own provider when no final-tier provider
+        can accept a source image, because a slightly worse photograph beats
+        an error.
+        """
+        if not prefer_quality:
+            return self._registry.get(preview_provider_id)
+
+        candidates = self._registry.candidates(
+            tier=Tier.FINAL, required=(Capability.IMAGE_TO_IMAGE,)
+        )
+        if not candidates:
+            return self._registry.get(preview_provider_id)
+
+        # Dearest first: this tier exists to be good, not cheap. The cheap
+        # decision was already made at preview time, where it belongs.
+        return max(candidates, key=lambda p: p.descriptor.cost_per_call_usd)

@@ -20,12 +20,39 @@
   que gastarte el saldo a medias.
 </div>
 
-<h2>Calidad y coste</h2>
+<div id="saved" class="notice" style="display:none"></div>
+
+<h2>Calidad de las fotos finales</h2>
+<p class="hint" style="margin:0 0 8px;">
+  Las opciones que eliges son rápidas y gratuitas. Esto decide con qué se hace
+  la foto <em>definitiva</em>, que es la que te llevas.
+</p>
 <div class="row">
   <div class="chips">
-    <button class="chip {% if preview_count == 4 %}on{% endif %}" data-count="4">Económico · 4 opciones</button>
-    <button class="chip {% if preview_count == 6 %}on{% endif %}" data-count="6">Equilibrado · 6 opciones</button>
-    <button class="chip {% if preview_count == 9 %}on{% endif %}" data-count="9">Máxima calidad · 9 opciones</button>
+    <button class="chip {% if final_quality == 'best' %}on{% endif %}" data-quality="best">
+      Mejor calidad · manos y ropa más precisas
+    </button>
+    <button class="chip {% if final_quality == 'free' %}on{% endif %}" data-quality="free">
+      Gratis · calidad más justa
+    </button>
+  </div>
+</div>
+{% if not quality_available %}
+  <p class="hint" style="margin:6px 0 0;">
+    Ahora mismo solo está disponible la opción gratuita.
+  </p>
+{% endif %}
+
+<h2>Cuántas opciones ver</h2>
+<p class="hint" style="margin:0 0 8px;">
+  Cuántas fotos te preparo para elegir. Son gratuitas, así que esto cambia
+  sobre todo lo que tardas en decidir.
+</p>
+<div class="row">
+  <div class="chips">
+    <button class="chip {% if preview_count == 4 %}on{% endif %}" data-count="4">4 opciones</button>
+    <button class="chip {% if preview_count == 6 %}on{% endif %}" data-count="6">6 opciones</button>
+    <button class="chip {% if preview_count == 9 %}on{% endif %}" data-count="9">9 opciones</button>
   </div>
 </div>
 
@@ -65,12 +92,43 @@
 
 {% block script %}
 <script>
+// These used to write to localStorage, which the server never reads - so the
+// chips highlighted, changed nothing, and reverted on reload. A control that
+// looks like a choice and is not one is worse than no control at all.
+async function saveSetting(field, value, group) {
+  const body = new FormData();
+  body.append(field, value);
+  try {
+    const response = await fetch('/ajustes', { method: 'POST', body });
+    if (!response.ok) throw new Error(response.status);
+    document.querySelectorAll(group).forEach(c => c.classList.remove('on'));
+    document.querySelector(`[${field === 'preview_count' ? 'data-count' : 'data-quality'}="${value}"]`)
+      ?.classList.add('on');
+    say('Guardado.');
+  } catch (_) {
+    // Say so rather than leaving the chip highlighted on a value the server
+    // never received.
+    say('No he podido guardar el cambio. Inténtalo otra vez.', true);
+  }
+}
+
+function say(message, bad) {
+  const box = document.getElementById('saved');
+  box.className = bad ? 'notice bad' : 'notice';
+  box.textContent = message;
+  box.style.display = 'block';
+  clearTimeout(say._t);
+  say._t = setTimeout(() => { box.style.display = 'none'; }, 2500);
+}
+
 document.querySelectorAll('[data-count]').forEach(chip => {
-  chip.addEventListener('click', () => {
-    document.querySelectorAll('[data-count]').forEach(c => c.classList.remove('on'));
-    chip.classList.add('on');
-    localStorage.setItem('preview_count', chip.dataset.count);
-  });
+  chip.addEventListener('click', () =>
+    saveSetting('preview_count', chip.dataset.count, '[data-count]'));
+});
+
+document.querySelectorAll('[data-quality]').forEach(chip => {
+  chip.addEventListener('click', () =>
+    saveSetting('final_quality', chip.dataset.quality, '[data-quality]'));
 });
 
 // Permission is requested only here, on a deliberate tap - never on first

@@ -44,6 +44,7 @@ from app.catalog import Catalog, ProposalEngine, default_chip_rows
 from app.compile.compiler import PromptCompiler
 from app.config import settings
 from app.contracts.common import Attribute
+from app.contracts.provider import Tier
 from app.contracts.selections import Selections
 from app.gate import backends
 from app.gate.backends import FaceBackend
@@ -453,6 +454,8 @@ async def start_previews(
         parsed = look.as_selections()
 
     ir = await asyncio.to_thread(services.analyser.analyse, path)
+    # Read once, at session start. A preference changed mid-generation must
+    # not produce a batch made by two different models.
     state = services.orchestrator.open_session(
         source_path=path, ir=ir, look=look, selections=parsed
     )
@@ -748,6 +751,31 @@ def purge_expired() -> int:
     return count
 
 
+@app.post("/ajustes")
+async def guardar_ajustes(
+    request: Request,
+    preview_count: int = Form(None),
+    final_quality: str = Form(None),
+) -> JSONResponse:
+    """Save a setting. The chips had no route behind them at all."""
+    require_session(request)
+    saved: dict[str, str] = {}
+
+    if preview_count is not None:
+        # Bounded rather than trusted: this multiplies directly into what a
+        # session costs, and it arrives from a form.
+        count = max(2, min(12, int(preview_count)))
+        services.store.set_preference("preview_count", str(count))
+        saved["preview_count"] = str(count)
+
+    if final_quality is not None:
+        choice = "best" if str(final_quality).lower() == "best" else "free"
+        services.store.set_preference("final_quality", choice)
+        saved["final_quality"] = choice
+
+    return JSONResponse({"ok": True, "saved": saved})
+
+
 @app.get("/ajustes", response_class=HTMLResponse)
 async def ajustes(request: Request) -> Response:
     if (redirect := _guard(request)) is not None:
@@ -758,7 +786,15 @@ async def ajustes(request: Request) -> Response:
         {
             "spend": services.store.spend_summary(),
             "caps": settings.caps,
-            "preview_count": settings.preview_count,
+            "preview_count": int(
+                services.store.preference("preview_count", str(settings.preview_count))
+            ),
+            "final_quality": services.store.preference("final_quality", "best"),
+            "quality_available": any(
+                p.descriptor.cost_per_call_usd > 0
+                for p in services.registry.all()
+                if Tier.FINAL in p.descriptor.tiers
+            ),
             "warnings": services.warnings(),
             # Available, not the raw file count. They differ whenever the
             # coverage policy is holding looks back, and a settings page that

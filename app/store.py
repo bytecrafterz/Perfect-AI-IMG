@@ -375,6 +375,38 @@ class Store:
             ).fetchall()
         return [dict(r) for r in rows]
 
+    # -- preferences -------------------------------------------------------
+
+    def preference(self, key: str, default: str = "") -> str:
+        """One saved setting.
+
+        The Ajustes chips had a click handler that toggled a CSS class and no
+        route behind them: they looked like controls, changed nothing, and
+        reverted on reload. A setting that cannot be saved is worse than an
+        absent one, because it invites her to believe she has chosen.
+        """
+        with self.connect() as db:
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS preferences ("
+                " key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+            )
+            row = db.execute(
+                "SELECT value FROM preferences WHERE key=?", (key,)
+            ).fetchone()
+        return str(row["value"]) if row else default
+
+    def set_preference(self, key: str, value: str) -> None:
+        with self.connect() as db:
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS preferences ("
+                " key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+            )
+            db.execute(
+                "INSERT INTO preferences (key, value) VALUES (?,?)"
+                " ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                (key, str(value)),
+            )
+
     def spend_summary(self) -> dict[str, float]:
         now = time.time()
         return {
