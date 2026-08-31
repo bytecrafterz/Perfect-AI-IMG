@@ -39,7 +39,7 @@
     <!-- The live counter is honest about what she is asking for, before she
          spends anything: selecting more raises variety, not price. -->
     <div class="counter" id="counter">Sin filtros · te preparo una variedad</div>
-    <button class="go" id="go">Ver 6 opciones</button>
+    <button class="go" id="go">Ver {{ preview_count }} opciones</button>
   </div>
 </div>
 {% endblock %}
@@ -133,8 +133,13 @@ document.getElementById('go').addEventListener('click', async (event) => {
     location.href = `/opciones/${data.session_id}`;
   } catch (error) {
     button.disabled = false;
-    button.textContent = 'Ver 6 opciones';
-    alert('No he podido empezar. Inténtalo otra vez.');
+    button.textContent = `Ver {{ preview_count }} opciones`;
+    // Say WHAT went wrong. This read the server's reason, threw it, and then
+    // discarded it for a generic "try again" - so a configuration fault
+    // looked identical to a network blip, and trying again could never help.
+    const reason = (error && error.message && error.message !== 'error')
+      ? `\n\n${error.message}` : '';
+    alert(`No he podido empezar.${reason}`);
   }
 });
 

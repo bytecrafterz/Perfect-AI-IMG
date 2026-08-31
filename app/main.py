@@ -55,6 +55,7 @@ from app.ledger import BudgetExceeded, Ledger
 from app.orchestrator.engine import Orchestrator
 from app.orchestrator.events import EventKind, bus
 from app.profile.model import IdentityProfile
+from app.providers.base import ProviderError
 from app.providers.loader import build_registry
 from app.providers.router import Bandit, Router
 from app.store import Store
@@ -399,6 +400,7 @@ async def estilo(request: Request, image_id: str) -> Response:
         request,
         "estilo.html",
         {
+            "preview_count": _preview_count(),
             "image_id": image_id,
             "photo_url": f"/media/thumb/{Path(path).stem}.webp",
             "proposals": [p.public() for p in proposals],
@@ -471,7 +473,17 @@ async def start_previews(
     )
 
     wanted = count or _preview_count()
-    estimate = services.orchestrator.estimate(state, count=wanted)
+    try:
+        estimate = services.orchestrator.estimate(state, count=wanted)
+    except ProviderError as exc:
+        # A configuration fault, not a transient one. Returning 500 gave her
+        # "No he podido empezar. Intentalo otra vez" - advice that could never
+        # work, for a problem retrying cannot touch.
+        print(f"[estudio] no se pudo estimar la sesion: {exc}")
+        return JSONResponse(
+            {"detail": f"No hay proveedor de imagen configurado: {exc}"},
+            status_code=503,
+        )
 
     async def run() -> None:
         try:

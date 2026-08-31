@@ -80,8 +80,8 @@
       "max_resolution": [1024, 1280],
       "prompt_dialect": "instructional",
       "params": {},
-      "enabled": false,
-      "notes": "FREE final tier, DISABLED by default and deliberately so. It works, but klein-4B is a distilled 4B model and its output is below fal's flux-pro/kontext, which is what the paid final tier buys. Finals are what she actually keeps and shows people. Enable this only if the budget is truly zero, and tell her plainly that finals are a step down. 1024x1280 is 6 tiles, so 161.7 neurons and ~62 finals a day; a full session of 6 previews plus 3 finals is ~830 neurons, about 12 sessions daily. NOTE: this adapter cannot inpaint - the endpoint has no mask parameter - so the repair loop will decline rather than silently rewrite the whole photograph."
+      "enabled": true,
+      "notes": "FREE final tier. Shipped disabled originally, because klein-4B is below fal's flux-pro/kontext and finals are what she keeps. Enabled once the fal key turned out to be a Cloudflare token: with no paid tier registered there was no final tier AT ALL, and the router raised 'no provider serves tier=final' before a session could even start. A slightly worse photograph beats no photograph, and the paid tier takes precedence automatically whenever a valid fal key is present. It works, but klein-4B is a distilled 4B model and its output is below fal's flux-pro/kontext, which is what the paid final tier buys. Finals are what she actually keeps and shows people. Enable this only if the budget is truly zero, and tell her plainly that finals are a step down. 1024x1280 is 6 tiles, so 161.7 neurons and ~62 finals a day; a full session of 6 previews plus 3 finals is ~830 neurons, about 12 sessions daily. NOTE: this adapter cannot inpaint - the endpoint has no mask parameter - so the repair loop will decline rather than silently rewrite the whole photograph."
     },
     {
       "adapter": "replicate",

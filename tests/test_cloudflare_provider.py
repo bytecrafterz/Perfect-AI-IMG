@@ -402,12 +402,25 @@ def test_the_free_preview_tier_is_enabled_and_costs_nothing() -> None:
     assert entry["max_resolution"] == [512, 640]
 
 
-def test_the_free_final_tier_ships_disabled() -> None:
-    """It works, but klein-4B is below fal's kontext, and finals are what she
-    keeps and shows people. Enabling it is a deliberate budget decision, not
-    a default."""
-    entry = next(e for e in _entries() if e["id"] == "cloudflare.flux-klein-final")
-    assert entry["enabled"] is False
+def test_a_final_tier_always_exists() -> None:
+    """There must ALWAYS be some final-tier provider that can edit an image.
+
+    The free final tier shipped disabled on the reasoning that klein-4B is
+    below fal's kontext and finals are what she keeps. That was right while a
+    paid tier existed. When the fal key turned out to be a Cloudflare token
+    and was cleared, it left NO final tier at all - and the router raised
+    "no provider serves tier=final" out of the cost ESTIMATE, before a single
+    image was attempted. She saw "No he podido empezar. Intentalo otra vez",
+    advice that could never work.
+
+    The paid tier still takes precedence automatically whenever a valid fal
+    key is present, so enabling this costs nothing when it is not needed.
+    """
+    finals = [
+        e for e in _entries()
+        if e.get("enabled") and "final" in e["tiers"] and "i2i" in e["capabilities"]
+    ]
+    assert finals, "no enabled final-tier provider can edit an image"
 
 
 def test_no_provider_squashes_the_portrait() -> None:

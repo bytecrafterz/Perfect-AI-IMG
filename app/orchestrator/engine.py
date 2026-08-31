@@ -174,12 +174,30 @@ class Orchestrator:
     # -- estimation --------------------------------------------------------
 
     def estimate(self, state: SessionState, *, count: int) -> SessionEstimate:
+        """What the session is expected to cost, before it starts.
+
+        An ESTIMATE must never be the thing that prevents a session. With no
+        final-tier provider registered this raised straight out of
+        POST /previews and she saw "No he podido empezar" with no further
+        explanation - stopped by a cost projection, before a single image had
+        been attempted.
+
+        A missing final tier is worth knowing about, and it is worth knowing
+        about when the finals are actually requested. Here it is a zero.
+        """
         preview_choice = self._router.select(
             tier=Tier.PREVIEW, look=state.look, has_source=bool(state.source_path)
         )
-        final_choice = self._router.select(
-            tier=Tier.FINAL, look=state.look, has_source=bool(state.source_path)
-        )
+        try:
+            final_unit = self._router.select(
+                tier=Tier.FINAL, look=state.look, has_source=bool(state.source_path)
+            ).unit_cost_usd
+        except ProviderError:
+            # Estimate the finals at the preview's price rather than refusing
+            # to quote. It is the honest fallback: if no final tier exists,
+            # run_finals will use the preview provider too.
+            final_unit = preview_choice.unit_cost_usd
+
         from app.gate.judge import JUDGE_COST_USD
 
         return SessionEstimate(
@@ -189,7 +207,7 @@ class Orchestrator:
             # She typically keeps about half; the estimate says so rather than
             # quietly assuming the cheapest or the dearest case.
             expected_finals=max(1, count // 2),
-            final_unit_usd=final_choice.unit_cost_usd,
+            final_unit_usd=final_unit,
             judge_unit_usd=JUDGE_COST_USD,
         )
 
