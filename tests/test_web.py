@@ -270,3 +270,76 @@ def test_uploads_keep_naming_by_source_stem(tmp_path) -> None:
 
     thumb, _ = build_derivatives(source, tmp_path / "deriv")
     assert thumb.name == "a13ca4a1bbf10443_c4a39c.webp"
+
+
+# ---------------------------------------------------------------------------
+# A saved setting must reach the thing it configures
+# ---------------------------------------------------------------------------
+
+
+def test_the_saved_preview_count_is_what_gets_generated() -> None:
+    """She chose 9, the chip showed 9 selected, and six photographs arrived.
+
+    The preference was written by POST /ajustes and read back to paint the
+    chips - and generation used settings.preview_count from the environment
+    instead. Saved, displayed, and ignored: the worst of the three, because
+    the screen confirms a choice that is not being honoured.
+    """
+    import app.main as main
+
+    original = main.services.store.preference("preview_count", "")
+    try:
+        main.services.store.set_preference("preview_count", "9")
+        assert main._preview_count() == 9
+        main.services.store.set_preference("preview_count", "4")
+        assert main._preview_count() == 4
+    finally:
+        if original:
+            main.services.store.set_preference("preview_count", original)
+
+
+def test_the_saved_quality_choice_is_what_gets_used() -> None:
+    """Same failure, different setting: "Gratis" was saved and never read at
+    session start, so finals kept going to the paid tier and 401ing."""
+    import app.main as main
+
+    original = main.services.store.preference("final_quality", "")
+    try:
+        main.services.store.set_preference("final_quality", "free")
+        assert main._prefer_quality() is False
+        main.services.store.set_preference("final_quality", "best")
+        assert main._prefer_quality() is True
+    finally:
+        if original:
+            main.services.store.set_preference("final_quality", original)
+
+
+def test_a_corrupt_saved_count_does_not_break_generation() -> None:
+    """It arrives from a form and multiplies into what a session costs."""
+    import app.main as main
+    from app.config import settings
+
+    original = main.services.store.preference("preview_count", "")
+    try:
+        main.services.store.set_preference("preview_count", "not a number")
+        assert main._preview_count() == settings.preview_count
+        main.services.store.set_preference("preview_count", "9999")
+        assert main._preview_count() <= 12
+    finally:
+        if original:
+            main.services.store.set_preference("preview_count", original)
+
+
+def test_every_reader_of_the_count_goes_through_one_function() -> None:
+    """/previews and the page that draws the waiting slots both need it, and
+    those two disagreeing is how a grid ends up with placeholders that never
+    fill."""
+    import inspect
+
+    import app.main as main
+
+    source = inspect.getsource(main)
+    body = source.split("def _preview_count", 1)[0]  # exclude the definition
+    assert "settings.preview_count" not in body, (
+        "something still reads the environment default directly"
+    )

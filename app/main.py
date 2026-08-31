@@ -461,7 +461,7 @@ async def start_previews(
         ir=ir,
         look=look,
         selections=parsed,
-        prefer_quality=services.store.preference("final_quality", "best") == "best",
+        prefer_quality=_prefer_quality(),
     )
     services.store.open_session(
         session_id=state.id,
@@ -470,7 +470,7 @@ async def start_previews(
         selections={a.value: v for a, v in parsed.values.items()},
     )
 
-    wanted = count or settings.preview_count
+    wanted = count or _preview_count()
     estimate = services.orchestrator.estimate(state, count=wanted)
 
     async def run() -> None:
@@ -580,7 +580,7 @@ async def opciones(request: Request, session_id: str) -> Response:
     return templates.TemplateResponse(
         request,
         "opciones.html",
-        {"session_id": session_id, "expected": settings.preview_count, "tab": "crear"},
+        {"session_id": session_id, "expected": _preview_count(), "tab": "crear"},
     )
 
 
@@ -790,9 +790,7 @@ async def ajustes(request: Request) -> Response:
         {
             "spend": services.store.spend_summary(),
             "caps": settings.caps,
-            "preview_count": int(
-                services.store.preference("preview_count", str(settings.preview_count))
-            ),
+            "preview_count": _preview_count(),
             "final_quality": services.store.preference("final_quality", "best"),
             "quality_available": any(
                 p.descriptor.cost_per_call_usd > 0
@@ -848,6 +846,31 @@ def _derivative(kind: str, name: str) -> Path:
             print(f"[estudio] AVISO: no pude reconstruir {safe}: {exc}")
         break
     return path
+
+
+def _preview_count() -> int:
+    """How many options to make, honouring what she actually chose.
+
+    The saved preference was written by POST /ajustes and read back to paint
+    the chips - and then generation used settings.preview_count from the
+    environment instead. She selected 9, the screen showed 9 selected, and six
+    photographs arrived.
+
+    Resolved in ONE place because the same preference is needed by /previews
+    and by the page that draws the waiting slots, and those two disagreeing is
+    how a grid ends up with three placeholders that never fill.
+    """
+    try:
+        return max(2, min(12, int(services.store.preference(
+            "preview_count", str(settings.preview_count)
+        ))))
+    except (TypeError, ValueError):
+        return settings.preview_count
+
+
+def _prefer_quality() -> bool:
+    """Whether finals go to the paid tier. Same reasoning: one reader."""
+    return services.store.preference("final_quality", "best") == "best"
 
 
 def _record_image(**fields) -> None:

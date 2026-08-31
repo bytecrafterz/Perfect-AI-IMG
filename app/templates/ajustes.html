@@ -29,7 +29,9 @@
 </p>
 <div class="row">
   <div class="chips">
-    <button class="chip {% if final_quality == 'best' %}on{% endif %}" data-quality="best">
+    <button class="chip {% if final_quality == 'best' %}on{% endif %}"
+            data-quality="best"
+            {% if not quality_available %}disabled{% endif %}>
       Mejor calidad · manos y ropa más precisas
     </button>
     <button class="chip {% if final_quality == 'free' %}on{% endif %}" data-quality="free">
@@ -38,8 +40,13 @@
   </div>
 </div>
 {% if not quality_available %}
+  {# Disabled rather than merely annotated. Offering a choice that cannot be
+     honoured is the same fault as a chip that saves nothing - it looks like a
+     decision and is not one. #}
   <p class="hint" style="margin:6px 0 0;">
-    Ahora mismo solo está disponible la opción gratuita.
+    Ahora mismo solo está disponible la opción gratuita. Para activar la mejor
+    calidad hace falta una clave de fal.ai con saldo en el archivo
+    <code>.env</code>.
   </p>
 {% endif %}
 
