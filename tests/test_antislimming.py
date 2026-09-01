@@ -243,3 +243,52 @@ def test_an_uncertain_wrist_is_flagged_with_a_box(tmp_path: Path) -> None:
     defects = [d for d in report.defects if d.kind.value == "hand"]
     assert defects and defects[0].bbox is not None
     assert defects[0].is_repairable, "a located hand defect must be repairable"
+
+
+# ---------------------------------------------------------------------------
+# Pose is not body shape
+# ---------------------------------------------------------------------------
+
+
+def test_drift_ignores_limb_ratios() -> None:
+    """The check would have rejected her own unaltered photograph.
+
+    Measured on two photographs of Nayane taken the same day: every
+    width-over-length ratio agreed to within 3.9%, well inside the 6%
+    threshold - and limb:forearm_r differed by 35.65%, purely because her arm
+    was at a different angle. max() over everything reported 0.3565 and would
+    have blamed the generator for foreshortening.
+
+    The width-over-length ratios ARE the anti-slimming measure. They were
+    chosen because they survive pose; including limbs in the maximum threw
+    that property away.
+    """
+    from app.contracts.attribute_ir import BodyProportions
+
+    a = BodyProportions(
+        shoulder_torso_ratio=0.86, hip_torso_ratio=0.59,
+        limb_ratios={"forearm_r": 0.42},
+    )
+    b = BodyProportions(
+        shoulder_torso_ratio=0.86, hip_torso_ratio=0.59,
+        limb_ratios={"forearm_r": 0.27},   # 35% shorter: a different arm angle
+    )
+    drift = a.max_relative_drift(b)
+    assert drift is not None
+    assert drift < 0.01, f"pose leaked into the body-shape measure: {drift:.4f}"
+
+
+def test_a_real_narrowing_is_still_caught_without_limbs() -> None:
+    """Removing limbs must not make the check blind - that would be worse than
+    the false rejection it fixes."""
+    from app.contracts.attribute_ir import BodyProportions
+
+    real = BodyProportions(shoulder_torso_ratio=0.86, hip_torso_ratio=0.59)
+    slimmed = BodyProportions(shoulder_torso_ratio=0.73, hip_torso_ratio=0.50)
+    assert real.max_relative_drift(slimmed) > 0.06
+
+
+def test_nothing_comparable_is_unknown_not_fine() -> None:
+    from app.contracts.attribute_ir import BodyProportions
+
+    assert BodyProportions().max_relative_drift(BodyProportions()) is None

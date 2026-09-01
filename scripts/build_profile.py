@@ -42,12 +42,42 @@ MIN_SHARPNESS = 0.20
 MIN_PIXELS = 640 * 640
 
 
-def classify_framing(width: int, height: int) -> str:
-    """Aspect ratio is a weak signal, but weak-and-real beats invented.
+def classify_framing(width: int, height: int, path: Path | None = None) -> str:
+    """How much of her the photograph actually contains.
 
-    Replaced by pose keypoints once the CV models are installed, which is the
-    only way to get this right.
+    The docstring here used to promise that pose keypoints would replace the
+    aspect-ratio guess "once the CV models are installed". They are installed,
+    and the guess had to go, because it was not weak - it was blind.
+
+    Every photograph from one phone in one orientation has the same aspect
+    ratio. All thirteen of hers are 1.333, so the old rule returned "medio
+    cuerpo" for all thirteen regardless of content - including the two that do
+    show her hips. It was classifying the FILE, not the photograph, and no
+    photograph she could ever send on that phone would have been counted as
+    full body. She would have done exactly what was asked and been told she
+    had sent nothing usable.
+
+    Keypoints answer the actual question. Ankles visible means head to feet;
+    hips means at least half; neither means a portrait.
     """
+    if path is not None:
+        try:
+            from app.gate.backends import PoseBackend
+
+            pose = PoseBackend(settings.models_dir).subject(path)
+            both = lambda a, b: pose.get(a) is not None and pose.get(b) is not None
+            if both("left_ankle", "right_ankle"):
+                return "cuerpo entero"
+            if both("left_hip", "right_hip"):
+                return "medio cuerpo"
+            if both("left_shoulder", "right_shoulder"):
+                return "medio cuerpo"
+            return "primer plano"
+        except Exception:  # noqa: BLE001 - no model, or no person found
+            pass
+
+    # Fallback only. Kept so the script still runs without the CV stack, and
+    # deliberately NOT trusted when keypoints are available.
     aspect = height / max(1, width)
     if aspect > 1.45:
         return "cuerpo entero"
@@ -104,7 +134,7 @@ def screen(path: Path) -> PhotoVerdict:
     return PhotoVerdict(
         path=str(path),
         accepted=not reasons,
-        framing=classify_framing(width, height),
+        framing=classify_framing(width, height, path),
         sharpness=sharpness,
         reasons=reasons,
     )

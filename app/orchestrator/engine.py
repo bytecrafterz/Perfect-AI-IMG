@@ -520,10 +520,25 @@ class Orchestrator:
         request = GenerationRequest(
             prompt=str(repro.get("prompt", "")),
             negative_prompt=str(repro.get("negative_prompt", "")),
-            # img2img from the accepted preview is the fidelity-preferred
-            # route: the final is provably derived from what she chose, so it
-            # cannot drift. See PREVIEW FIDELITY in the spec.
+            # The chosen PREVIEW is the composition source, so the final is
+            # provably derived from the picture she picked and cannot drift
+            # into a different photograph. See PREVIEW FIDELITY in the spec.
             source_image_path=candidate.image_path,
+            # ...and HER ORIGINAL goes alongside it as an identity reference.
+            #
+            # Without this the paid model never saw her at all. The chain was
+            # her photo -> a free 512px preview -> the final, so identity was
+            # degraded twice and the one model best able to preserve it was
+            # working from a downscaled copy of a copy. Measured against her
+            # ArcFace centroid, the previews feeding the finals scored 0.18 to
+            # 0.26 - strangers score below 0.2.
+            #
+            # Preview fidelity is not given up to fix it: the preview remains
+            # the source. This adds the reference that says who the person is,
+            # which is exactly what an identity_reference capability is for.
+            reference_image_paths=(
+                [state.source_path] if state.source_path else []
+            ),
             width=self._settings.final_width,
             height=self._settings.final_height,
             seed=repro.get("seed"),  # type: ignore[arg-type]
@@ -704,6 +719,11 @@ class Orchestrator:
             prompt=str(repro.get("prompt", "")),
             negative_prompt=str(repro.get("negative_prompt", "")),
             source_image_path=candidate.image_path,
+            # Same as the first attempt - and this path runs when that one has
+            # already failed, so it needs the identity reference most.
+            reference_image_paths=(
+                [state.source_path] if state.source_path else []
+            ),
             width=self._settings.final_width,
             height=self._settings.final_height,
             seed=(repro.get("seed") or 0) + 7919,  # a different roll, same intent

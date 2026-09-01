@@ -262,3 +262,37 @@ def test_eyes_are_checked_at_both_stages(stage: str) -> None:
 
     source = inspect.getsource(getattr(Gate, stage))
     assert "_check_eyes" in source
+
+
+# ---------------------------------------------------------------------------
+# Her original must reach the model that produces the photograph she keeps
+# ---------------------------------------------------------------------------
+
+
+def test_the_final_carries_her_original_as_an_identity_reference() -> None:
+    """The paid model never saw her.
+
+    _one_final passed source_image_path=candidate.image_path - the accepted
+    PREVIEW - so the chain was her photo -> a free 512px preview -> the final.
+    Identity degraded twice, and the one model best able to preserve it was
+    working from a downscaled copy of a copy.
+
+    Preview fidelity is not given up to fix it: the preview is still the
+    composition source. Her original rides alongside as the reference that
+    says who the person is, which is what an identity_reference capability is
+    for.
+    """
+    import inspect
+
+    from app.orchestrator.engine import Orchestrator
+
+    for method in (Orchestrator._one_final, Orchestrator._retry_final):
+        source = inspect.getsource(method)
+        assert "reference_image_paths" in source, (
+            f"{method.__name__} sends no identity reference"
+        )
+        assert "state.source_path" in source, (
+            f"{method.__name__} does not pass HER photograph"
+        )
+        # ...and the preview must remain the composition source.
+        assert "source_image_path=candidate.image_path" in source

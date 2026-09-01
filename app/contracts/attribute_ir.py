@@ -80,7 +80,23 @@ class BodyProportions(BaseModel):
             a, b = getattr(self, field), getattr(other, field)
             if a and b:
                 deltas.append(abs(a - b) / a)
-        for key, a in self.limb_ratios.items():
+        # LIMB RATIOS ARE DELIBERATELY EXCLUDED.
+        #
+        # They measure POSE, not body shape. A forearm pointing towards the
+        # camera is shorter in two dimensions than one held out sideways, and
+        # that has nothing whatever to do with slimming.
+        #
+        # Measured on two photographs of Nayane taken the same day: every
+        # width-over-length ratio agreed to within 3.9%, comfortably inside
+        # the 6% threshold - and limb:forearm_r differed by 35.65% purely
+        # from foreshortening. max() over everything therefore reported 0.3565
+        # and would have rejected her own unaltered photograph, blaming the
+        # generator for the angle of her arm.
+        #
+        # The width-over-length ratios ARE the anti-slimming measure - they
+        # were chosen precisely because they survive pose. Keeping limbs in the
+        # maximum discards that property.
+        for key, a in {}.items():
             b = other.limb_ratios.get(key)
             if a and b:
                 deltas.append(abs(a - b) / a)
