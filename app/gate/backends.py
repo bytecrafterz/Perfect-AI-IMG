@@ -102,7 +102,15 @@ def detect_capabilities(models_dir: Path | None = None) -> CVCapabilities:
         onnxruntime=_module_available("onnxruntime"),
         insightface=_module_available("insightface"),
         opencv=_module_available("cv2"),
-        face_model=(models_dir / "buffalo_l").exists(),
+        # insightface puts models under <root>/models/<name>, so passing
+        # root=models_dir lands buffalo_l in models_dir/models/buffalo_l. The
+        # check looked one level up and reported the model missing while it
+        # sat on disk - the gate then ran degraded, correctly according to
+        # itself and wrongly according to the filesystem.
+        face_model=(
+            (models_dir / "buffalo_l").exists()
+            or (models_dir / "models" / "buffalo_l").exists()
+        ),
         pose_model=(models_dir / "yolov8n-pose.onnx").exists(),
         hand_model=False,  # optional; finger counting is not implemented
     )

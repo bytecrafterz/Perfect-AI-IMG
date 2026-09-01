@@ -33,7 +33,15 @@ scikit-image==0.25.0
 #
 # Until that is resolved the gate reports identity and skin_tone as UNKNOWN,
 # which is honest and does not block - see resolve_strict in app/gate/gate.py.
-#     pip install insightface==0.7.3     # needs a compiler
+# RESOLVED: 1.0.1 has a Windows wheel and IS API-compatible with the
+# FaceAnalysis usage in app/gate/backends.py - verified by building an
+# identity centroid from her 24 photographs, which score 0.83-0.87 against it.
+# Install it WITHOUT dependencies, or pip tries to replace the opencv the
+# running app holds open and fails on a locked cv2.pyd:
+#
+#     pip install --no-deps --only-binary=:all: insightface easydict prettytable
+#     python scripts/fetch_models.py          # downloads buffalo_l, ~300 MB
+insightface>=1.0.1
 
 # Models are downloaded by scripts/fetch_models.py, not vendored:
 #   buffalo_l         face detection + ArcFace recognition  (insightface)

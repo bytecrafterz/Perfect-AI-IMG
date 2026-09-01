@@ -97,7 +97,7 @@ def build_gate(tmp_path: Path, *, pose_for_image: Pose, strict: bool = True) -> 
 
 def test_a_faithful_image_passes(tmp_path: Path) -> None:
     gate = build_gate(tmp_path, pose_for_image=pose_from(full_body_keypoints()))
-    report = gate.screen(photo(tmp_path))
+    report = gate.inspect(photo(tmp_path))
 
     check = report.check("proportions")
     assert check.outcome is CheckOutcome.PASS
@@ -116,14 +116,28 @@ def test_a_slimmed_image_is_rejected(tmp_path: Path) -> None:
         slimmed[name] = (320 + (x - 320) * 0.85, y, c)
 
     gate = build_gate(tmp_path, pose_for_image=pose_from(slimmed))
-    report = gate.screen(photo(tmp_path))
 
-    check = report.check("proportions")
+    # The measurement fires at BOTH stages - a slimmed preview is ranked down
+    # and never presented as a good option.
+    preview = gate.screen(photo(tmp_path))
+    check = preview.check("proportions")
     assert check.outcome is CheckOutcome.FAIL
-    assert report.verdict is Verdict.DISCARD
     # And it says WHAT changed, not just that something did.
     assert "mas estrecho" in check.detail
     assert "%" in check.detail
+
+    # ...and the stage that DELIVERS refuses it. That is where "stops it
+    # reaching her" is enforced, because a preview is a proposal she chooses
+    # between and a final is a photograph she receives.
+    #
+    # The distinction had to be drawn: with identity enrolled, the free
+    # preview model scores ~0.49 against her centroid where her own photos
+    # score 0.83-0.87, so vetoing at preview stage discarded every candidate
+    # and she was offered nothing at all - which does not protect her, it just
+    # leaves her with no product.
+    delivered = gate.inspect(photo(tmp_path))
+    assert delivered.check("proportions").outcome is CheckOutcome.FAIL
+    assert delivered.verdict is Verdict.DISCARD
 
 
 def test_the_same_body_photographed_closer_still_passes(tmp_path: Path) -> None:
@@ -168,7 +182,15 @@ def test_a_widened_body_is_rejected_too(tmp_path: Path) -> None:
 
 def test_no_baseline_reports_unknown_and_blocks(tmp_path: Path) -> None:
     """Without a baseline the check cannot run, and in strict mode an
-    unmeasurable check must block rather than wave the image through."""
+    unmeasurable check must block rather than wave the image through.
+
+    Asserted through inspect(), not screen(). Strictness belongs to the stage
+    that DELIVERS. screen() deliberately never blocks - a preview is a
+    proposal she chooses between, and with identity enrolled the free preview
+    model scored 0.49 against her centroid where her own photographs score
+    0.83-0.87, so a strict screen discarded every candidate and the session
+    produced nothing at all.
+    """
     profile = IdentityProfile(owner="test")  # no proportions measured
     gate = Gate(
         profile=profile,
@@ -176,7 +198,7 @@ def test_no_baseline_reports_unknown_and_blocks(tmp_path: Path) -> None:
         models_dir=tmp_path / "models",
         strict=True,
     )
-    report = gate.screen(photo(tmp_path))
+    report = gate.inspect(photo(tmp_path))
 
     check = report.check("proportions")
     assert check.outcome is CheckOutcome.UNKNOWN
@@ -193,7 +215,9 @@ def test_no_person_in_the_image_is_unknown_not_pass(tmp_path: Path) -> None:
         raise ModelUnavailable("no person found in the image")
 
     gate._pose.proportions = no_person  # type: ignore[assignment]
-    report = gate.screen(photo(tmp_path))
+    # inspect(), because that is the stage where an unmeasurable check must
+    # discard - see the note on Gate.screen.
+    report = gate.inspect(photo(tmp_path))
 
     assert report.check("proportions").outcome is CheckOutcome.UNKNOWN
     assert report.verdict is Verdict.DISCARD
@@ -356,3 +380,31 @@ def test_the_threshold_accepts_her_own_photographs() -> None:
     assert Thresholds().proportion_drift >= 0.14, (
         "threshold is back below her own measured variation"
     )
+
+
+def test_a_preview_is_offered_even_when_it_cannot_be_verified(tmp_path: Path) -> None:
+    """The counterpart, and it needs asserting or the change above reads as a
+    loosening of the guarantee.
+
+    screen() must NOT block. With identity enrolled and the gate strict, the
+    free preview model scored 0.49 against her centroid - her own photographs
+    score 0.83-0.87 - so every preview was discarded and the session produced
+    nothing whatever to choose from. The final stage, which CAN preserve her,
+    was never reached.
+
+    Every check still runs and every result is still recorded. What changes is
+    that an unverifiable preview is offered rather than destroyed.
+    """
+    gate = Gate(
+        profile=IdentityProfile(owner="test"),
+        thresholds=Thresholds(min_sharpness=0.0),
+        models_dir=tmp_path / "models",
+        strict=True,
+    )
+    report = gate.screen(photo(tmp_path))
+
+    assert report.check("proportions").outcome is CheckOutcome.UNKNOWN
+    assert report.verdict is not Verdict.DISCARD, (
+        "a strict screen destroys every candidate and the session delivers nothing"
+    )
+    assert gate.strict is True, "screen must not leave the gate permanently relaxed"

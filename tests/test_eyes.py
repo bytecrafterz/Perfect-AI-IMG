@@ -269,18 +269,26 @@ def test_eyes_are_checked_at_both_stages(stage: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_the_final_carries_her_original_as_an_identity_reference() -> None:
-    """The paid model never saw her.
+def test_the_final_edits_her_photograph_not_the_preview() -> None:
+    """The single most damaging decision in the project, and its correction.
 
     _one_final passed source_image_path=candidate.image_path - the accepted
-    PREVIEW - so the chain was her photo -> a free 512px preview -> the final.
-    Identity degraded twice, and the one model best able to preserve it was
-    working from a downscaled copy of a copy.
+    PREVIEW - so the chain was her photo -> a free 512px 4-step preview -> the
+    final. Measured against her ArcFace centroid, where her own photographs
+    score 0.83-0.87:
 
-    Preview fidelity is not given up to fix it: the preview is still the
-    composition source. Her original rides alongside as the reference that
-    says who the person is, which is what an identity_reference capability is
-    for.
+        final from the chosen preview   0.003   a stranger
+        final from HER photograph       0.703   her
+
+    Identity was already gone by the second step and the third faithfully
+    preserved its absence. Passing her photo as an additional
+    identity_reference did not help - kontext takes a single image_url and
+    ignores the rest.
+
+    Preview fidelity is not abandoned: the prompt, seed and look all still
+    come from the preview she chose. What changes is that the style is applied
+    to HER photograph rather than to a degraded copy of it, which is what
+    in_place_edit meant in the first place.
     """
     import inspect
 
@@ -288,11 +296,8 @@ def test_the_final_carries_her_original_as_an_identity_reference() -> None:
 
     for method in (Orchestrator._one_final, Orchestrator._retry_final):
         source = inspect.getsource(method)
-        assert "reference_image_paths" in source, (
-            f"{method.__name__} sends no identity reference"
+        assert "source_image_path=state.source_path" in source, (
+            f"{method.__name__} still edits the preview instead of her photograph"
         )
-        assert "state.source_path" in source, (
-            f"{method.__name__} does not pass HER photograph"
-        )
-        # ...and the preview must remain the composition source.
-        assert "source_image_path=candidate.image_path" in source
+        # The style must still come from what she chose.
+        assert "repro" in source, f"{method.__name__} lost the chosen preview's prompt"

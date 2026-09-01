@@ -375,7 +375,7 @@ def test_gate_records_unknown_rather_than_passing(settings, profile):
     result = asyncio.run(
         providers[0].generate(GenerationRequest(prompt="test", width=128, height=160))
     )
-    report = gate.screen(result.image_path)
+    report = gate.inspect(result.image_path)
 
     identity = report.check("identity")
     assert identity is not None
@@ -384,7 +384,13 @@ def test_gate_records_unknown_rather_than_passing(settings, profile):
 
 
 def test_strict_gate_blocks_what_it_cannot_measure(settings, profile):
-    """The production posture: an unmeasurable check discards the image."""
+    """The production posture: an unmeasurable check discards the image.
+
+    Through inspect(), the stage that delivers. screen() never blocks by
+    design - see Gate.screen - because a preview is a proposal, and a strict
+    screen with identity enrolled discarded every candidate before the stage
+    that can actually preserve her was ever reached.
+    """
     gate = Gate(
         profile=profile,
         thresholds=settings.thresholds,
@@ -397,7 +403,7 @@ def test_strict_gate_blocks_what_it_cannot_measure(settings, profile):
     result = asyncio.run(
         providers[0].generate(GenerationRequest(prompt="test", width=128, height=160))
     )
-    report = gate.screen(result.image_path)
+    report = gate.inspect(result.image_path)
     assert report.verdict is Verdict.DISCARD
     assert "no medible" in report.notes
 

@@ -165,7 +165,28 @@ class Gate:
     # -- public entry points ----------------------------------------------
 
     def screen(self, image_path: str | Path) -> QAReport:
-        """Stage A. Free, CPU-only, no paid call."""
+        """Stage A. Free, CPU-only, no paid call.
+
+        NEVER STRICT, whatever the gate's setting. A preview is a proposal she
+        chooses between, not a photograph she receives, and the two-stage
+        design only works if something reaches her to choose from.
+
+        This is not a loosening of the guarantee. Every check still runs and
+        every result is recorded, the ranking still puts the best candidates
+        first, and inspect() - the stage that produces what she actually keeps
+        - applies the full strictness. What changes is that a preview which
+        cannot be verified is offered rather than destroyed.
+
+        It had to change. With identity enrolled and the gate strict, the free
+        preview model scored 0.49 against her centroid where her own
+        photographs score 0.83-0.87, so every preview was discarded and the
+        session produced nothing at all - not one image survived to be chosen,
+        and the final stage that CAN preserve her was never reached.
+
+        The honest framing for her: previews show you the scene, the clothes
+        and the pose. The finished photograph is the one that has to be you,
+        and that is the one the gate refuses to compromise on.
+        """
         started = time.monotonic()
         report = QAReport(image_id=str(image_path), stage="preview")
         rgb = backends.load_rgb(image_path, max_side=640)
@@ -179,7 +200,40 @@ class Gate:
         report.checks.append(hands_check)
         report.defects.extend(hand_defects)
 
-        self._finalise(report, started)
+        # Strictness belongs to the stage that delivers, not the one that
+        # proposes. Temporarily relaxed rather than passing a flag through
+        # _finalise, so there is exactly one place that decides what a verdict
+        # means and no second code path to keep in step.
+        was_strict, self.strict = self.strict, False
+        try:
+            self._finalise(report, started)
+        finally:
+            self.strict = was_strict
+
+        # A preview is discarded only when the IMAGE is broken, never for a
+        # resemblance judgement.
+        #
+        # The free preview model does not preserve her: it scores about 0.49
+        # against her centroid where her own photographs score 0.83-0.87. So
+        # an identity FAIL - not an unknown, a measured failure - discarded
+        # every candidate, and the session offered her nothing. The paid final
+        # stage, which receives her original as an identity reference and CAN
+        # preserve her, was never reached because nothing survived to choose.
+        #
+        # The measurement is kept and it still orders the grid, so the most
+        # like her appear first. It simply does not veto at a stage whose
+        # output nobody receives.
+        if report.verdict is Verdict.DISCARD:
+            broken = {"exposure", "sharpness"}
+            fatal = [c.name for c in report.checks if c.failed and c.name in broken]
+            if not fatal and not report.blocking_defects:
+                report.verdict = Verdict.ACCEPT
+                deferred = [c.name for c in report.checks if c.failed]
+                if deferred:
+                    report.notes = (
+                        "propuesta | PENDIENTE DE VERIFICAR EN LA FINAL: "
+                        + ", ".join(deferred)
+                    )
         return report
 
     def inspect(

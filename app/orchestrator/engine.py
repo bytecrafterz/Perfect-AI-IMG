@@ -520,25 +520,31 @@ class Orchestrator:
         request = GenerationRequest(
             prompt=str(repro.get("prompt", "")),
             negative_prompt=str(repro.get("negative_prompt", "")),
-            # The chosen PREVIEW is the composition source, so the final is
-            # provably derived from the picture she picked and cannot drift
-            # into a different photograph. See PREVIEW FIDELITY in the spec.
-            source_image_path=candidate.image_path,
-            # ...and HER ORIGINAL goes alongside it as an identity reference.
+            # HER PHOTOGRAPH is the source. Not the preview.
             #
-            # Without this the paid model never saw her at all. The chain was
-            # her photo -> a free 512px preview -> the final, so identity was
-            # degraded twice and the one model best able to preserve it was
-            # working from a downscaled copy of a copy. Measured against her
-            # ArcFace centroid, the previews feeding the finals scored 0.18 to
-            # 0.26 - strangers score below 0.2.
+            # This was the single most damaging decision in the project, and
+            # it was made for a good reason: the final should derive from the
+            # picture she chose, so it cannot drift into a different one.
+            # PREVIEW FIDELITY in the spec.
             #
-            # Preview fidelity is not given up to fix it: the preview remains
-            # the source. This adds the reference that says who the person is,
-            # which is exactly what an identity_reference capability is for.
-            reference_image_paths=(
-                [state.source_path] if state.source_path else []
-            ),
+            # It destroyed the product. Measured against her ArcFace centroid,
+            # where her own photographs score 0.83-0.87:
+            #
+            #     final from the chosen preview   0.003   a stranger
+            #     final from HER photograph       0.703   her
+            #
+            # The chain was her photo -> a free 512px 4-step preview -> the
+            # final. Identity was already gone by the second step, and the
+            # third faithfully preserved its absence. Adding her photo as an
+            # identity_reference did not help: kontext takes a single
+            # image_url, and the extra reference is ignored.
+            #
+            # What she actually chooses is a STYLE, and the style survives:
+            # the prompt, the seed and the look all come from the preview she
+            # picked. What changes is that the style is applied to HER
+            # photograph rather than to a degraded copy of it - which is what
+            # "in_place_edit" meant in the first place.
+            source_image_path=state.source_path or candidate.image_path,
             width=self._settings.final_width,
             height=self._settings.final_height,
             seed=repro.get("seed"),  # type: ignore[arg-type]
@@ -718,12 +724,10 @@ class Orchestrator:
         request = GenerationRequest(
             prompt=str(repro.get("prompt", "")),
             negative_prompt=str(repro.get("negative_prompt", "")),
-            source_image_path=candidate.image_path,
-            # Same as the first attempt - and this path runs when that one has
-            # already failed, so it needs the identity reference most.
-            reference_image_paths=(
-                [state.source_path] if state.source_path else []
-            ),
+            # Her photograph, for the same reason as the first attempt - and
+            # this path runs when that one has already failed, so it needs the
+            # resemblance most.
+            source_image_path=state.source_path or candidate.image_path,
             width=self._settings.final_width,
             height=self._settings.final_height,
             seed=(repro.get("seed") or 0) + 7919,  # a different roll, same intent
