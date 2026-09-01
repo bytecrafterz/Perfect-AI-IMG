@@ -22,6 +22,43 @@
 
 <div id="saved" class="notice" style="display:none"></div>
 
+<h2>Tu saldo</h2>
+<p class="hint" style="margin:0 0 8px;">
+  Ni Anthropic ni fal.ai me dejan consultar tu saldo, asi que lo llevo yo:
+  dime cuanto recargas y voy descontando lo que gastamos. Es la misma cuenta
+  que ves arriba en <em>Gasto</em>.
+</p>
+
+{% for b in balances %}
+  <div class="stat">
+    <span>{{ b.service }}</span>
+    <span>
+      {% if b.topped_up_usd %}
+        ${{ '%.2f'|format(b.remaining_usd) }} de ${{ '%.2f'|format(b.topped_up_usd) }}
+      {% else %}
+        sin registrar
+      {% endif %}
+    </span>
+  </div>
+{% endfor %}
+
+<div class="row" style="margin-top:8px;">
+  <div class="chips">
+    {% for b in balances %}
+      {% for amount in [5, 10, 20] %}
+        <button class="chip" data-topup="{{ b.service }}" data-amount="{{ amount }}">
+          + ${{ amount }} en {{ b.service }}
+        </button>
+      {% endfor %}
+    {% endfor %}
+  </div>
+</div>
+<p class="hint" style="margin:6px 0 0;">
+  Esto solo <strong>anota</strong> una recarga que ya has hecho tu en la web de
+  Anthropic o de fal.ai. Este sistema no tiene tus datos de pago y no puede
+  cobrarte nada: solo puede gastar el saldo que ya existe, nunca comprar mas.
+</p>
+
 <h2>Calidad de las fotos finales</h2>
 <p class="hint" style="margin:0 0 8px;">
   Las opciones que eliges son rápidas y gratuitas. Esto decide con qué se hace
@@ -127,6 +164,23 @@ function say(message, bad) {
   clearTimeout(say._t);
   say._t = setTimeout(() => { box.style.display = 'none'; }, 2500);
 }
+
+document.querySelectorAll('[data-topup]').forEach(chip => {
+  chip.addEventListener('click', async () => {
+    const body = new FormData();
+    body.append('service', chip.dataset.topup);
+    body.append('amount', chip.dataset.amount);
+    try {
+      const response = await fetch('/ajustes/saldo', { method: 'POST', body });
+      if (!response.ok) throw new Error(response.status);
+      const data = await response.json();
+      say(`Anotado. Saldo en ${chip.dataset.topup}: $${data.balance.toFixed(2)}`);
+      setTimeout(() => location.reload(), 1200);
+    } catch (_) {
+      say('No he podido anotar la recarga.', true);
+    }
+  });
+});
 
 document.querySelectorAll('[data-count]').forEach(chip => {
   chip.addEventListener('click', () =>

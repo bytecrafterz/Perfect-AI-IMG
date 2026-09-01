@@ -40,6 +40,7 @@ from sse_starlette.sse import EventSourceResponse
 from app.analysis.analyser import build_analyser
 from app.analysis.photo_router import REFERENCE_TARGETS, PhotoRole, PhotoRouter
 from app.auth import COOKIE_NAME, Auth
+from app.balance import BalanceBook
 from app.catalog import Catalog, ProposalEngine, default_chip_rows
 from app.compile.compiler import PromptCompiler
 from app.config import settings
@@ -157,6 +158,7 @@ class Services:
             ledger=self.ledger,
             bus=bus,
         )
+        self.balances = BalanceBook(self.store)
         self.uploads: dict[str, str] = {}
 
     def warnings(self) -> list[str]:
@@ -217,6 +219,11 @@ class Services:
             )
             if not ready
         ]
+        # Money first. She asked to be warned BEFORE the credit runs out and
+        # to be stopped rather than have the robot keep trying - so this
+        # outranks anything about verification.
+        out.extend(self.balances.warnings_es())
+
         if unverified and not self.gate.strict:
             out.append(
                 "Todavia no puedo comprobar automaticamente "
@@ -392,7 +399,7 @@ async def estilo(request: Request, image_id: str) -> Response:
             raise HTTPException(status_code=404, detail="foto no encontrada")
         path = row.path
 
-    ir = await asyncio.to_thread(services.analyser.analyse, path)
+    ir = await _analyse(image_id, path)
     proposals = services.proposals.rank(services.catalog.all(), ir, limit=6)
     rows = default_chip_rows(proposals[0].look if proposals else None)
 
@@ -455,7 +462,7 @@ async def start_previews(
         # with shortcuts on top.
         parsed = look.as_selections()
 
-    ir = await asyncio.to_thread(services.analyser.analyse, path)
+    ir = await _analyse(image_id, path)
     # Read once, at session start. A preference changed mid-generation must
     # not produce a batch made by two different models.
     state = services.orchestrator.open_session(
@@ -471,6 +478,15 @@ async def start_previews(
         look_id=look_id or None,
         selections={a.value: v for a, v in parsed.values.items()},
     )
+
+    empty = services.balances.exhausted()
+    if empty:
+        # Stop, and say so. She asked for exactly this: "que el bot se detenga
+        # y me avise inmediatamente, en lugar de continuar intentando generar
+        # imagenes."
+        return JSONResponse(
+            {"detail": services.balances.warnings_es()[0]}, status_code=402
+        )
 
     wanted = count or _preview_count()
     try:
@@ -792,6 +808,29 @@ async def guardar_ajustes(
     return JSONResponse({"ok": True, "saved": saved})
 
 
+@app.post("/ajustes/saldo")
+async def registrar_saldo(
+    request: Request, service: str = Form(...), amount: float = Form(...)
+) -> JSONResponse:
+    """Record a top-up she has made on the provider's own website.
+
+    Neither service exposes a remaining-credit endpoint, so this is the only
+    honest way to count down: she states what she added, and we subtract what
+    we have spent - which is the same figure her cost line comes from.
+
+    This records money she has ALREADY paid. It cannot take any.
+    """
+    require_session(request)
+    if service not in services.balances.SERVICES:
+        return JSONResponse({"detail": "servicio desconocido"}, status_code=400)
+    if not (0 < amount <= 1000):
+        return JSONResponse({"detail": "importe fuera de rango"}, status_code=400)
+    services.balances.set_topped_up(service, amount)
+    return JSONResponse(
+        {"ok": True, "balance": services.balances.balance(service).remaining_usd}
+    )
+
+
 @app.get("/ajustes", response_class=HTMLResponse)
 async def ajustes(request: Request) -> Response:
     if (redirect := _guard(request)) is not None:
@@ -801,6 +840,7 @@ async def ajustes(request: Request) -> Response:
         "ajustes.html",
         {
             "spend": services.store.spend_summary(),
+            "balances": services.balances.all(),
             "caps": settings.caps,
             "preview_count": _preview_count(),
             "final_quality": services.store.preference("final_quality", "best"),
@@ -858,6 +898,63 @@ def _derivative(kind: str, name: str) -> Path:
             print(f"[estudio] AVISO: no pude reconstruir {safe}: {exc}")
         break
     return path
+
+
+_ANALYSIS_CACHE: dict[str, object] = {}
+
+
+async def _analyse(image_id: str, path: str):
+    """Read a photograph once, record what it cost, and cache the answer.
+
+    THREE PROBLEMS THIS CLOSES, all on the same call.
+
+    It is a paid vision call fired from GET /estilo/{id}. It had no cap check,
+    so it could spend past the limits; no ledger entry, so the spend was
+    invisible to the totals SHE is shown; and no cache, so every refresh of
+    the style screen was another charge for reading the same photograph.
+
+    The client asked, in her own words, to know what she is spending and to
+    have nothing charged she did not decide on. An uncapped, unrecorded,
+    uncached call is the exact opposite of that.
+
+    A photograph does not change, so the reading is cached by image id.
+    """
+    cached = _ANALYSIS_CACHE.get(image_id)
+    if cached is not None:
+        return cached
+
+    from app.analysis.analyser import ANALYSIS_COST_USD
+
+    if settings.has_language_model:
+        try:
+            services.ledger.check(
+                session_id=f"analysis:{image_id}", additional_usd=ANALYSIS_COST_USD
+            )
+        except BudgetExceeded as exc:
+            # Fall back to the free arithmetic reading rather than refusing the
+            # screen. She still gets her styles; they are simply ranked without
+            # a model's help.
+            print(f"[estudio] analisis omitido por tope: {exc}")
+            return await asyncio.to_thread(services.analyser._fallback.analyse, path)
+
+    reading = await asyncio.to_thread(services.analyser.analyse, path)
+
+    spent = float(getattr(reading, "cost_usd", 0.0) or 0.0)
+    if spent:
+        services.store.add_cost(
+            session_id=f"analysis:{image_id}", kind="analysis",
+            provider_id=settings.analyser_model, usd=spent,
+            detail="lectura de la foto", at=time.time(),
+        )
+        services.ledger.record(
+            session_id=f"analysis:{image_id}", kind="analysis",
+            provider_id=settings.analyser_model, usd=spent,
+        )
+
+    _ANALYSIS_CACHE[image_id] = reading
+    if len(_ANALYSIS_CACHE) > 200:
+        _ANALYSIS_CACHE.pop(next(iter(_ANALYSIS_CACHE)))
+    return reading
 
 
 def _preview_count() -> int:
