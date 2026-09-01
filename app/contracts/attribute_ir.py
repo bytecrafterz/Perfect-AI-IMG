@@ -68,6 +68,23 @@ class BodyProportions(BaseModel):
         Returns None when there is nothing comparable - which the gate must
         treat as "unknown", never as "fine".
         """
+        # Width-over-LENGTH ratios are the point of this check: shoulder_hip
+        # alone is blind to uniform slimming, because both terms shrink
+        # together and a 15% narrowing moves it about 2%. Being made thinner
+        # overall - not reshaped - is precisely what the client complained
+        # about, so they stay.
+        #
+        # They are, however, sensitive to CAMERA DISTANCE, and the generator
+        # reframes. Measured: her own photographs drift 3.7-13.3% from her own
+        # baseline purely on framing, and a generation that moved the torso
+        # from 34% to 49% of the frame read as 31.7% "narrower" with every
+        # ratio moving the same way.
+        #
+        # The answer is NOT to drop them - that would discard the only measure
+        # that catches the actual complaint. It is to refuse to compare across
+        # different framings at all. See gate._check_proportions, which returns
+        # UNKNOWN rather than FAIL when the two images do not show the same
+        # parts of her.
         deltas: list[float] = []
         for field in (
             "shoulder_hip_ratio",

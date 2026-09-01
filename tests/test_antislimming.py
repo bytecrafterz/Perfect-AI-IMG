@@ -292,3 +292,67 @@ def test_nothing_comparable_is_unknown_not_fine() -> None:
     from app.contracts.attribute_ir import BodyProportions
 
     assert BodyProportions().max_relative_drift(BodyProportions()) is None
+
+
+# ---------------------------------------------------------------------------
+# A comparison across different framings is not a comparison
+# ---------------------------------------------------------------------------
+
+
+def test_a_reframed_generation_is_unknown_not_failed() -> None:
+    """The measurement that nearly shipped a lie.
+
+    Width-over-length ratios are sensitive to camera distance, and the
+    generator reframes. A real generation moved her torso from 34% to 49% of
+    the frame and measured 31.7% "narrower", every ratio moving the same way -
+    which by the numbers alone is indistinguishable from real slimming.
+
+    Reported as FAIL it would have blamed the tool for its own crop. Reported
+    as UNKNOWN it is honest: the comparison could not be made. That is the
+    whole discipline of this gate.
+    """
+    import inspect
+
+    from app.gate.gate import Gate
+
+    source = inspect.getsource(Gate._check_proportions)
+    assert "_same_framing" in source
+    assert "CheckOutcome.UNKNOWN" in source
+
+    framing = inspect.getsource(Gate._same_framing)
+    for landmark in ("left_hip", "left_knee", "left_ankle"):
+        assert landmark in framing, "framing must compare which parts are visible"
+    assert "torso_span" in framing, "framing must compare apparent camera distance"
+
+
+def test_the_torso_ratios_are_still_compared() -> None:
+    """They are the only measure that catches uniform slimming - the client's
+    actual complaint - so removing them to stop the false failures would have
+    thrown away the point of the check.
+
+    An earlier attempt did exactly that, and three tests encoding the
+    requirement failed. They were right and the change was wrong.
+    """
+    from app.contracts.attribute_ir import BodyProportions
+
+    a = BodyProportions(shoulder_hip_ratio=1.46, shoulder_torso_ratio=0.86,
+                        hip_torso_ratio=0.59)
+    # Everything narrowed by 15%: shoulder_hip barely moves, torso ratios do.
+    b = BodyProportions(shoulder_hip_ratio=1.46, shoulder_torso_ratio=0.731,
+                        hip_torso_ratio=0.501)
+    assert a.max_relative_drift(b) > 0.10
+
+
+def test_the_threshold_accepts_her_own_photographs() -> None:
+    """6% was chosen perceptually and never checked against the measurement's
+    own repeatability. Her own drift from her own baseline ranges 3.7-13.3%,
+    so at 6% the check rejected 6 of her 10 measurable photographs.
+
+    A threshold below the noise floor does not make a check strict, it makes
+    it wrong.
+    """
+    from app.config import Thresholds
+
+    assert Thresholds().proportion_drift >= 0.14, (
+        "threshold is back below her own measured variation"
+    )

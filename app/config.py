@@ -102,10 +102,23 @@ class Thresholds:
     identity_accept: float = 0.62
     identity_repair: float = 0.50
 
-    #: Largest permitted relative drift in any body measurement.  This is the
-    #: anti-slimming check; 6% is roughly the point at which a change becomes
-    #: visible side by side.
-    proportion_drift: float = 0.06
+    #: Largest permitted relative drift in any body measurement.
+    #:
+    #: 6% was chosen perceptually - "roughly the point at which a change
+    #: becomes visible side by side" - and never checked against the
+    #: measurement's own repeatability. Measured against her 24 photographs,
+    #: her OWN drift from her OWN baseline ranges 3.7% to 13.3%, median 7.0%.
+    #: At 6% the check rejected 6 of her 10 measurable photographs; at 15% it
+    #: rejects none.
+    #:
+    #: A threshold below the noise floor of the thing it measures does not
+    #: make a check strict, it makes it wrong - and here it would have blamed
+    #: the generator for the angle she stood at.
+    #:
+    #: 15% is therefore a COARSE BACKSTOP against gross reshaping, not a
+    #: precision instrument. Say so when reporting it. Tightening it needs
+    #: framing normalisation that does not exist yet.
+    proportion_drift: float = 0.15
 
     #: CIE76 deltaE on cheek and arm patches.
     skin_delta_e: float = 4.0

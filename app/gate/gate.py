@@ -198,7 +198,7 @@ class Gate:
         report.checks.append(self._check_sanity(rgb))
         report.checks.append(self._check_sharpness(rgb))
         report.checks.append(self._check_identity(image_path))
-        report.checks.append(self._check_proportions(image_path))
+        report.checks.append(self._check_proportions(image_path, source_path))
         report.checks.append(self._check_skin(rgb))
         report.checks.append(self._check_eyes(image_path))
 
@@ -286,20 +286,68 @@ class Gate:
             detail="" if outcome is CheckOutcome.PASS else "no se parece lo suficiente",
         )
 
-    def _check_proportions(self, image_path: str | Path) -> Check:
+    def _check_proportions(
+        self, image_path: str | Path, source_path: str | Path | None = None
+    ) -> Check:
         """THE ANTI-SLIMMING CHECK.
 
-        Measures her body ratios in the generated image and compares them
-        against the day-1 baseline. Every ratio is normalised by torso length,
-        so a different crop, zoom or pose does not register as a change - only
-        a change in HER does.
+        Compares the generated image against HER SOURCE PHOTOGRAPH when there
+        is one, and against the stored baseline only when there is not.
 
-        This is what catches the specific thing she complained about, and it
-        is why its unavailability is reported so loudly rather than tolerated.
+        WHY THE SOURCE AND NOT THE BASELINE
+
+        The ratios are width-over-LENGTH, and the claim that they "survive a
+        different crop or zoom" is false in a way that only shows up with real
+        photographs. Perspective foreshortens the torso by an amount that
+        depends on camera distance, so the same woman measures differently
+        from two metres and from five.
+
+        Measured on her own 24 photographs: within one framing the spread is
+        2.8-8.2%, and ACROSS framings it is 19.2%. Built as a pooled baseline
+        and compared at a 6% threshold, all 10 of her own measurable
+        photographs were rejected as "not her body" - drifts of 6.0% to 36.8%.
+        A check that rejects the person it was built from is not a check.
+
+        The source photograph does not have that problem, because in
+        image-to-image the output inherits the input's framing. Perspective
+        cancels on both sides of the comparison, and the question being asked
+        becomes the honest one: did the generator change her BETWEEN the photo
+        she gave it and the photo it returned? That is exactly the complaint
+        this check exists to answer, and the source is always available.
+
+        The baseline remains the fallback for text-to-image, where there is no
+        source to compare against.
         """
         from app.contracts.common import Attribute
 
-        if not self.profile.can_check_proportions:
+        reference = None
+        against = "tu foto original"
+        if source_path is not None:
+            try:
+                reference = self._pose.proportions(source_path)
+                if reference.shoulder_torso_ratio is None:
+                    reference = None
+                elif not self._same_framing(source_path, image_path):
+                    # Different framing makes the comparison meaningless, and
+                    # a meaningless comparison that returns a NUMBER is the
+                    # dangerous kind. Refuse it.
+                    return Check(
+                        name="proportions",
+                        outcome=CheckOutcome.UNKNOWN,
+                        attribute=Attribute.BODY_PROPORTIONS,
+                        detail=(
+                            "el encuadre ha cambiado, no puedo comparar "
+                            "proporciones de forma fiable"
+                        ),
+                    )
+            except ModelUnavailable:
+                reference = None
+
+        if reference is None:
+            reference = self.profile.proportions
+            against = "tu perfil"
+
+        if reference is self.profile.proportions and not self.profile.can_check_proportions:
             return Check(
                 name="proportions",
                 outcome=CheckOutcome.UNKNOWN,
@@ -316,7 +364,7 @@ class Gate:
                 detail=str(exc),
             )
 
-        drift = self.profile.proportions.max_relative_drift(measured)
+        drift = reference.max_relative_drift(measured)
         if drift is None:
             # Keypoints were found but nothing comparable came out of them -
             # a close-up with no hips, most often. Unknown, not fine.
@@ -341,10 +389,46 @@ class Gate:
             detail=(
                 ""
                 if passed
-                else f"tu cuerpo ha cambiado un {drift:.0%} "
-                f"(limite {threshold:.0%}) - {self._describe_drift(measured)}"
+                else f"tu cuerpo ha cambiado un {drift:.0%} respecto a "
+                f"{against} (limite {threshold:.0%}) - {self._describe_drift(measured)}"
             ),
         )
+
+    def _same_framing(self, a: str | Path, b: str | Path) -> bool:
+        """Do these two images show the SAME parts of her?
+
+        Width-over-length ratios are sensitive to camera distance, and the
+        generator reframes. A generation that moved her torso from 34% to 49%
+        of the frame measured 31.7% "narrower" with every ratio moving the
+        same way - indistinguishable, by the numbers alone, from real
+        slimming.
+
+        So the comparison is only made when both images show the same
+        landmarks and the torso occupies a similar share of the frame. When
+        they do not, the answer is UNKNOWN - which blocks in strict mode and
+        is recorded either way. That is the whole discipline of this gate: a
+        check that cannot be made honestly is not made.
+        """
+        try:
+            pa, pb = self._pose.subject(a), self._pose.subject(b)
+        except ModelUnavailable:
+            return False
+
+        landmarks = ("left_hip", "right_hip", "left_knee", "left_ankle")
+        if any((pa.get(k) is None) != (pb.get(k) is None) for k in landmarks):
+            return False
+
+        def torso_span(pose) -> float | None:
+            sh, hp = pose.midpoint("left_shoulder", "right_shoulder"), pose.midpoint("left_hip", "right_hip")
+            return pose.span(sh, hp) if sh and hp else None
+
+        sa, sb = torso_span(pa), torso_span(pb)
+        if sa is None or sb is None:
+            return False
+        # Within a fifth of each other. Loose enough for a natural shift in
+        # stance, tight enough to catch the reframing that caused the false
+        # readings.
+        return abs(sa - sb) / max(sa, sb) <= 0.20
 
     def _describe_drift(self, measured) -> str:
         """Name what moved, in her language.
