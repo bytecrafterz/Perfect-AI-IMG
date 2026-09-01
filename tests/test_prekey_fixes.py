@@ -191,19 +191,42 @@ async def test_text_to_image_only_provider_refuses_a_source_image(
     assert not rec.requests, "refused calls must not reach the network or the bill"
 
 
-def test_the_shipped_config_declares_an_image_to_image_endpoint() -> None:
-    """Every catalog look routes in_place_edit, so the preview provider's i2i
-    path is the one that actually runs in production."""
+def test_no_provider_claims_an_unverified_i2i_endpoint() -> None:
+    """A capability a provider does NOT have is worse than one it lacks,
+    because the router selects on the claim.
+
+    This test used to require the opposite: that fal.flux-schnell declare i2i
+    with a separate i2i_model. It did, with a guessed endpoint -
+    fal-ai/flux/schnell/image-to-image - and a real run returned 404.
+
+    The session survived only because Cloudflare also serves the preview tier
+    and the router fell through to it. So a broken provider looked like a
+    working system, and the only trace was one line in the log. The test
+    asserted the guess and passed.
+
+    Any entry declaring i2i must either name a different i2i_model or serve
+    both from its single endpoint, AND have been verified by a real call.
+    """
     root = Path(__file__).resolve().parent.parent
     entries = json.loads((root / "providers.json").read_text(encoding="utf-8"))["providers"]
-    schnell = next(e for e in entries if e["id"] == "fal.flux-schnell")
 
-    assert "i2i" in schnell["capabilities"]
-    assert schnell.get("i2i_model"), (
-        "fal.flux-schnell claims image-to-image but names no i2i endpoint - "
-        "its model path is text-to-image only"
-    )
-    assert schnell["i2i_model"] != schnell["model"]
+    verified = {
+        "fal.flux-kontext",            # real call, produced a photograph
+        "cloudflare.flux-klein-preview",
+        "cloudflare.flux-klein-final",
+        "replicate.flux-schnell",
+        "replicate.flux-dev",
+    }
+    for entry in entries:
+        if "i2i" in entry["capabilities"]:
+            assert entry["id"] in verified, (
+                f"{entry['id']} declares i2i unverified - the router will "
+                "select it for her photographs"
+            )
+
+    schnell = next(e for e in entries if e["id"] == "fal.flux-schnell")
+    assert "i2i" not in schnell["capabilities"], "verified 404 against that path"
+
 
 
 # ---------------------------------------------------------------------------

@@ -23,17 +23,16 @@
       "adapter": "fal",
       "id": "fal.flux-schnell",
       "model": "fal-ai/flux/schnell",
-      "i2i_model": "fal-ai/flux/schnell/image-to-image",
       "api_key_env": "FAL_API_KEY",
       "tiers": ["preview"],
-      "capabilities": ["t2i", "i2i"],
+      "capabilities": ["t2i"],
       "cost_per_call_usd": 0.003,
       "p50_latency_s": 2.0,
       "max_resolution": [1024, 1024],
       "prompt_dialect": "natural_verbose",
       "params": { "num_inference_steps": 4 },
       "enabled": true,
-      "notes": "Preview tier. Four steps, cheap and fast - it exists to give her something real to choose between, not to be the final photograph. NOTE: on fal, text-to-image and image-to-image are separate endpoints for this model, not one endpoint with a mode flag - hence i2i_model. Every look routes in_place_edit, so in practice the i2i path is the one that runs. VERIFY IT WITH check_provider.py BEFORE A REAL SESSION: if that path is wrong the call fails loudly, which is the point, but it fails."
+      "notes": "Preview tier. Four steps, cheap and fast - it exists to give her something real to choose between, not to be the final photograph. TEXT-TO-IMAGE ONLY. It briefly declared i2i with a guessed endpoint, fal-ai/flux/schnell/image-to-image, which returns 404 - verified by a real run. Every look routes in_place_edit, so this provider is simply never selected for her photographs; the free Cloudflare model handles previews and fal.flux-kontext handles finals. Declaring a capability a provider does not have is worse than lacking it: the router selects on the claim."
     },
     {
       "adapter": "fal",

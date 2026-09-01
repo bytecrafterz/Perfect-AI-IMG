@@ -507,6 +507,7 @@ async def start_previews(
         except BudgetExceeded as exc:
             bus.publish(state.id, EventKind.ERROR, detail=exc.message_es())
             return
+        _persist_costs(state.id)
         for candidate in candidates:
             _record_image(
                 image_id=candidate.id,
@@ -563,16 +564,7 @@ async def start_finals(
                 score=final.report.score,
                 report=final.report.model_dump(mode="json"),
             )
-        for entry in services.ledger.entries:
-            if entry.session_id == state.id:
-                services.store.add_cost(
-                    session_id=entry.session_id,
-                    kind=entry.kind,
-                    provider_id=entry.provider_id,
-                    usd=entry.usd,
-                    detail=entry.detail,
-                    at=entry.at,
-                )
+        _persist_costs(state.id)
         services.store.close_session(
             session_id=state.id,
             cost_usd=services.ledger.session_total(state.id),
@@ -955,6 +947,38 @@ async def _analyse(image_id: str, path: str):
     if len(_ANALYSIS_CACHE) > 200:
         _ANALYSIS_CACHE.pop(next(iter(_ANALYSIS_CACHE)))
     return reading
+
+
+_PERSISTED_COSTS: set[tuple] = set()
+
+
+def _persist_costs(session_id: str) -> None:
+    """Write this session's spending to the costs table, once each.
+
+    Costs used to be persisted only at the END of /finals. So a session where
+    she looked at previews and picked nothing spent real money that never
+    reached the database - and three separate things read that table: the
+    spend figures she is shown, the daily cap after a restart, and the credit
+    countdown she asked for. All three undercounted, and the error grew every
+    time she changed her mind.
+
+    Called after previews AND after finals, deduplicated, because a preview
+    already written must not be written again when the finals land.
+    """
+    for entry in services.ledger.entries:
+        if entry.session_id != session_id:
+            continue
+        key = (entry.session_id, entry.at, entry.kind, entry.provider_id, entry.usd)
+        if key in _PERSISTED_COSTS:
+            continue
+        services.store.add_cost(
+            session_id=entry.session_id, kind=entry.kind,
+            provider_id=entry.provider_id, usd=entry.usd,
+            detail=entry.detail, at=entry.at,
+        )
+        _PERSISTED_COSTS.add(key)
+    if len(_PERSISTED_COSTS) > 5000:
+        _PERSISTED_COSTS.clear()
 
 
 def _preview_count() -> int:

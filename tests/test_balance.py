@@ -175,3 +175,54 @@ def test_exhausted_lists_only_what_is_actually_empty(book: BalanceBook) -> None:
                          provider_id="fal.flux-kontext", usd=1.0,
                          detail="", at=time.time() + 1)
     assert book.exhausted() == ["fal.ai"]
+
+
+# ---------------------------------------------------------------------------
+# Spending must reach the database, or three separate things undercount
+# ---------------------------------------------------------------------------
+
+
+def test_preview_spend_is_persisted_even_if_she_picks_nothing() -> None:
+    """Costs were written only at the END of /finals.
+
+    So a session where she looked at her options and picked nothing spent real
+    money that never reached the costs table - and THREE things read that
+    table: the spend figures she is shown, the daily cap after a restart, and
+    the credit countdown she asked for. All three undercounted, and the error
+    grew every time she changed her mind.
+    """
+    import inspect
+
+    import app.main as main
+
+    previews = inspect.getsource(main.start_previews)
+    assert "_persist_costs" in previews, (
+        "preview spending is not written to the database"
+    )
+
+
+def test_costs_are_not_written_twice() -> None:
+    """previews persists, then finals persists again over the same session.
+    Without deduplication her spend would double and the caps would fire at
+    half the real limit."""
+    import inspect
+
+    import app.main as main
+
+    source = inspect.getsource(main._persist_costs)
+    assert "_PERSISTED_COSTS" in source
+    assert "continue" in source, "no skip for an already-written entry"
+
+
+def test_the_three_readers_share_one_table() -> None:
+    """The spend she sees, the cap that stops her, and the balance countdown
+    must be the same arithmetic - or they will disagree in front of her."""
+    import inspect
+
+    import app.main as main
+    from app.balance import BalanceBook
+    from app.store import Store
+
+    assert "costs_since" in inspect.getsource(BalanceBook.spent_since_topup)
+    assert "costs" in inspect.getsource(Store.spend_since)
+    assert "costs_since" in inspect.getsource(main.Services.__init__)
